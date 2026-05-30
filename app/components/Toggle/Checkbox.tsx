@@ -61,28 +61,28 @@ function CheckboxInput(props: CheckboxInputProps) {
   }, [on])
 
   const offBackgroundColor = [
-    disabled && colors.palette.neutral400,
+    disabled && colors.tintInactive,
     status === "error" && colors.errorBackground,
-    colors.palette.neutral200,
+    colors.surface,
   ].filter(Boolean)[0]
 
   const outerBorderColor = [
-    disabled && colors.palette.neutral400,
+    disabled && colors.tintInactive,
     status === "error" && colors.error,
-    !on && colors.palette.neutral800,
-    colors.palette.secondary500,
+    !on && colors.border,
+    colors.tint,
   ].filter(Boolean)[0]
 
   const onBackgroundColor = [
     disabled && colors.transparent,
     status === "error" && colors.errorBackground,
-    colors.palette.secondary500,
+    colors.tint,
   ].filter(Boolean)[0]
 
   const iconTintColor = [
-    disabled && colors.palette.neutral600,
+    disabled && colors.textSubtle,
     status === "error" && colors.error,
-    colors.palette.accent100,
+    colors.tintLight,
   ].filter(Boolean)[0]
 
   return (

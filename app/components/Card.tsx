@@ -259,7 +259,7 @@ const $containerBase: ThemedStyle<ViewStyle> = (theme) => ({
   borderRadius: theme.spacing.md,
   padding: theme.spacing.xs,
   borderWidth: 1,
-  shadowColor: theme.colors.palette.neutral800,
+  shadowColor: theme.colors.background,
   shadowOffset: { width: 0, height: 12 },
   shadowOpacity: 0.08,
   shadowRadius: 12.81,
@@ -284,31 +284,31 @@ const $containerPresets: Record<Presets, ThemedStyleArray<ViewStyle>> = {
     $styles.row,
     $containerBase,
     (theme) => ({
-      backgroundColor: theme.colors.palette.neutral100,
-      borderColor: theme.colors.palette.neutral300,
+      backgroundColor: theme.colors.surface,
+      borderColor: theme.colors.border,
     }),
   ],
   reversed: [
     $styles.row,
     $containerBase,
     (theme) => ({
-      backgroundColor: theme.colors.palette.neutral800,
-      borderColor: theme.colors.palette.neutral500,
+      backgroundColor: theme.colors.elevated,
+      borderColor: theme.colors.border,
     }),
   ],
 }
 
 const $headingPresets: Record<Presets, ThemedStyleArray<TextStyle>> = {
   default: [],
-  reversed: [(theme) => ({ color: theme.colors.palette.neutral100 })],
+  reversed: [(theme) => ({ color: theme.colors.text })],
 }
 
 const $contentPresets: Record<Presets, ThemedStyleArray<TextStyle>> = {
   default: [],
-  reversed: [(theme) => ({ color: theme.colors.palette.neutral100 })],
+  reversed: [(theme) => ({ color: theme.colors.text })],
 }
 
 const $footerPresets: Record<Presets, ThemedStyleArray<TextStyle>> = {
   default: [],
-  reversed: [(theme) => ({ color: theme.colors.palette.neutral100 })],
+  reversed: [(theme) => ({ color: theme.colors.text })],
 }

@@ -1,85 +1,44 @@
 const palette = {
-  neutral100: "#FFFFFF",
-  neutral200: "#F4F2F1",
-  neutral300: "#D7CEC9",
-  neutral400: "#B6ACA6",
-  neutral500: "#978F8A",
-  neutral600: "#564E4A",
-  neutral700: "#3C3836",
-  neutral800: "#191015",
-  neutral900: "#000000",
+  navy950: "#060D18",
+  navy900: "#0C1A2E",
+  navy800: "#132035",
+  navy700: "#1A2B42",
+  navy600: "#1E3050",
+  navy500: "#2A4060",
+  navy400: "#3A5575",
 
-  primary100: "#F4E0D9",
-  primary200: "#E8C1B4",
-  primary300: "#DDA28E",
-  primary400: "#D28468",
-  primary500: "#C76542",
-  primary600: "#A54F31",
+  gold500: "#C9963A",
+  gold400: "#D8A84E",
+  gold300: "#E8B55A",
+  gold100: "rgba(201, 150, 58, 0.15)",
 
-  secondary100: "#DCDDE9",
-  secondary200: "#BCC0D6",
-  secondary300: "#9196B9",
-  secondary400: "#626894",
-  secondary500: "#41476E",
-
-  accent100: "#FFEED4",
-  accent200: "#FFE1B2",
-  accent300: "#FDD495",
-  accent400: "#FBC878",
-  accent500: "#FFBB50",
+  slate100: "#FFFFFF",
+  slate300: "#C8D5E8",
+  slate400: "#8A9BB5",
+  slate500: "#5A6B80",
 
   angry100: "#F2D6CD",
   angry500: "#C03403",
 
-  overlay20: "rgba(25, 16, 21, 0.2)",
-  overlay50: "rgba(25, 16, 21, 0.5)",
+  overlay20: "rgba(0, 0, 0, 0.2)",
+  overlay50: "rgba(0, 0, 0, 0.5)",
 } as const
 
 export const colors = {
-  /**
-   * The palette is available to use, but prefer using the name.
-   * This is only included for rare, one-off cases. Try to use
-   * semantic names as much as possible.
-   */
   palette,
-  /**
-   * A helper for making something see-thru.
-   */
   transparent: "rgba(0, 0, 0, 0)",
-  /**
-   * The default text color in many components.
-   */
-  text: palette.neutral800,
-  /**
-   * Secondary text information.
-   */
-  textDim: palette.neutral600,
-  /**
-   * The default color of the screen background.
-   */
-  background: palette.neutral200,
-  /**
-   * The default border color.
-   */
-  border: palette.neutral400,
-  /**
-   * The main tinting color.
-   */
-  tint: palette.primary500,
-  /**
-   * The inactive tinting color.
-   */
-  tintInactive: palette.neutral300,
-  /**
-   * A subtle color used for lines.
-   */
-  separator: palette.neutral300,
-  /**
-   * Error messages.
-   */
+  text: palette.slate100,
+  textDim: palette.slate400,
+  textSubtle: palette.slate500,
+  background: palette.navy900,
+  surface: palette.navy800,
+  elevated: palette.navy700,
+  border: palette.navy600,
+  tint: palette.gold500,
+  tintLight: palette.gold300,
+  tintSubtle: palette.gold100,
+  tintInactive: palette.navy500,
+  separator: palette.navy600,
   error: palette.angry500,
-  /**
-   * Error Background.
-   */
   errorBackground: palette.angry100,
 } as const

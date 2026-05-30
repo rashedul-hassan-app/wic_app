@@ -86,15 +86,15 @@ function SwitchInput(props: SwitchInputProps) {
   )
 
   const offBackgroundColor = [
-    disabled && colors.palette.neutral400,
+    disabled && colors.tintInactive,
     status === "error" && colors.errorBackground,
-    colors.palette.neutral300,
+    colors.border,
   ].filter(Boolean)[0]
 
   const onBackgroundColor = [
     disabled && colors.transparent,
     status === "error" && colors.errorBackground,
-    colors.palette.secondary500,
+    colors.tint,
   ].filter(Boolean)[0]
 
   const knobBackgroundColor = (function () {
@@ -102,15 +102,15 @@ function SwitchInput(props: SwitchInputProps) {
       return [
         $detailStyleOverride?.backgroundColor,
         status === "error" && colors.error,
-        disabled && colors.palette.neutral600,
-        colors.palette.neutral100,
+        disabled && colors.textSubtle,
+        colors.palette.slate100,
       ].filter(Boolean)[0]
     } else {
       return [
         $innerStyleOverride?.backgroundColor,
-        disabled && colors.palette.neutral600,
+        disabled && colors.textSubtle,
         status === "error" && colors.error,
-        colors.palette.neutral200,
+        colors.surface,
       ].filter(Boolean)[0]
     }
   })()
@@ -191,10 +191,10 @@ function SwitchAccessibilityLabel(props: SwitchInputProps & { role: "on" | "off"
   ]
 
   const color = (function () {
-    if (disabled) return colors.palette.neutral600
+    if (disabled) return colors.textSubtle
     if (status === "error") return colors.error
-    if (!on) return innerStyle?.backgroundColor || colors.palette.secondary500
-    return detailStyle?.backgroundColor || colors.palette.neutral100
+    if (!on) return innerStyle?.backgroundColor || colors.tint
+    return detailStyle?.backgroundColor || colors.palette.slate100
   })()
 
   return (
