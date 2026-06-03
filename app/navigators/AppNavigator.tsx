@@ -6,7 +6,7 @@ import { ErrorBoundary } from "@/screens/ErrorScreen/ErrorBoundary"
 import { AdminLoginScreen } from "@/screens/AdminLoginScreen/AdminLoginScreen"
 import { useAppTheme } from "@/theme/context"
 
-import { MainTabNavigator } from "./MainTabNavigator"
+import { MainStackNavigator } from "./MainStackNavigator"
 import type { AppStackParamList, NavigationProps } from "./navigationTypes"
 import { navigationRef, useBackButtonHandler } from "./navigationUtilities"
 
@@ -26,7 +26,7 @@ function AppStack() {
         contentStyle: { backgroundColor: colors.background },
       }}
     >
-      <Stack.Screen name="Main" component={MainTabNavigator} />
+      <Stack.Screen name="Main" component={MainStackNavigator} />
       <Stack.Screen
         name="AdminLogin"
         component={AdminLoginScreen}

@@ -14,9 +14,15 @@ export type MainTabParamList = {
   More: undefined
 }
 
+// Main stack (wraps the bottom-tabs and other main-stack screens)
+export type MainStackParamList = {
+  Tabs: NavigatorScreenParams<MainTabParamList> | undefined
+  Alerts: undefined
+}
+
 // Root stack navigator
 export type AppStackParamList = {
-  Main: NavigatorScreenParams<MainTabParamList>
+  Main: NavigatorScreenParams<MainStackParamList>
   AdminLogin: undefined
 }
 

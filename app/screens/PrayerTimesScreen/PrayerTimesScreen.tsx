@@ -1,12 +1,14 @@
 import { FC, useState } from "react"
 import { ActivityIndicator, TouchableOpacity, View, ViewStyle, TextStyle } from "react-native"
-import { addDays, format, parseISO, subDays } from "date-fns"
 import { Ionicons } from "@expo/vector-icons"
+import { addDays, format, parseISO, subDays } from "date-fns"
 
 import { Screen } from "@/components/Screen"
 import { Text } from "@/components/Text"
+import { useAlerts } from "@/hooks/useAlerts"
 import { useCurrentPrayer } from "@/hooks/useCurrentPrayer"
 import { usePrayerTimes } from "@/hooks/usePrayerTimes"
+import type { MainTabScreenProps } from "@/navigators/navigationTypes"
 import { useAppTheme } from "@/theme/context"
 import type { ThemedStyle } from "@/theme/types"
 
@@ -20,8 +22,11 @@ function todayISO() {
   return format(new Date(), "yyyy-MM-dd")
 }
 
-export const PrayerTimesScreen: FC = () => {
-  const { themed, theme: { colors } } = useAppTheme()
+export const PrayerTimesScreen: FC<MainTabScreenProps<"Timetable">> = ({ navigation }) => {
+  const {
+    themed,
+    theme: { colors },
+  } = useAppTheme()
 
   const [selectedDate, setSelectedDate] = useState(todayISO)
   const isToday = selectedDate === todayISO()
@@ -33,11 +38,9 @@ export const PrayerTimesScreen: FC = () => {
   const { data: todayData } = usePrayerTimes(todayISO())
   const currentPrayer = useCurrentPrayer(todayData?.prayers ?? [])
 
-  const handlePrev = () =>
-    setSelectedDate(format(subDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
+  const handlePrev = () => setSelectedDate(format(subDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
 
-  const handleNext = () =>
-    setSelectedDate(format(addDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
+  const handleNext = () => setSelectedDate(format(addDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
 
   return (
     <Screen
@@ -47,7 +50,7 @@ export const PrayerTimesScreen: FC = () => {
       systemBarStyle="light"
       contentContainerStyle={themed($content)}
     >
-      <AppHeader />
+      <AppHeader navigation={navigation} />
 
       {data?.announcement && <AnnouncementBanner text={data.announcement} />}
 
@@ -74,9 +77,7 @@ export const PrayerTimesScreen: FC = () => {
             currentPrayerName={isToday ? (currentPrayer?.prayer.name ?? null) : null}
             countdownLabel={isToday ? currentPrayer?.countdownLabel : undefined}
           />
-          {data.jumuah.length > 0 && (
-            <JumuahTable jumuah={data.jumuah} />
-          )}
+          {data.jumuah.length > 0 && <JumuahTable jumuah={data.jumuah} />}
         </>
       ) : null}
 
@@ -85,12 +86,36 @@ export const PrayerTimesScreen: FC = () => {
   )
 }
 
-function AppHeader() {
-  const { themed, theme: { colors } } = useAppTheme()
+function AppHeader({ navigation }: { navigation: MainTabScreenProps<"Timetable">["navigation"] }) {
+  const {
+    themed,
+    theme: { colors },
+  } = useAppTheme()
+
+  const { unreadCount } = useAlerts()
 
   return (
     <View style={themed($header)}>
-      <Ionicons name="notifications-outline" size={22} color={colors.tint} />
+      <TouchableOpacity
+        hitSlop={8}
+        onPress={() =>
+          navigation.navigate("Main", {
+            screen: "Alerts",
+          })
+        }
+      >
+        <View>
+          <Ionicons name="notifications-outline" size={22} color={colors.tint} />
+
+          {unreadCount > 0 && (
+            <View style={themed($badge)}>
+              <Text size="xxs" style={themed($badgeText)}>
+                {unreadCount}
+              </Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
       <Text style={themed($headerTitle)} weight="bold">
         WIC Prayer App
       </Text>
@@ -146,4 +171,22 @@ const $footer: ThemedStyle<TextStyle> = ({ colors, spacing }) => ({
   fontSize: 12,
   marginTop: spacing.lg,
   marginBottom: spacing.md,
+})
+
+const $badge: ThemedStyle<ViewStyle> = ({ colors }) => ({
+  position: "absolute",
+  top: -6,
+  right: -8,
+  minWidth: 16,
+  height: 16,
+  borderRadius: 8,
+  backgroundColor: colors.tint,
+  alignItems: "center",
+  justifyContent: "center",
+  paddingHorizontal: 4,
+})
+
+const $badgeText: ThemedStyle<TextStyle> = ({ colors }) => ({
+  color: colors.background,
+  fontSize: 10,
 })
