@@ -40,10 +40,21 @@ export const NotificationScreen: FC<NotificationScreenProps> = ({ navigation }) 
     themed,
     theme: { colors },
   } = useAppTheme()
-  const { notifications, unreadCount, isLoading, error, refresh, markAllRead } = useNotifications()
+  const {
+    notifications,
+    unreadCount,
+    isLoading,
+    error,
+    refresh,
+    markAllRead,
+    scheduleMockNotification,
+  } = useNotifications()
   const isFocused = useIsFocused()
 
   const [isRefreshing, setRefreshing] = useState(false)
+  const [isScheduling, setScheduling] = useState(false)
+  // UI-only highlight state: these ids are unread when the inbox opens,
+  // but they are cleared once the user leaves and comes back.
   const [highlightedNotificationIds, setHighlightedNotificationIds] = useState<Set<string>>(
     () => new Set(),
   )
@@ -57,6 +68,8 @@ export const NotificationScreen: FC<NotificationScreenProps> = ({ navigation }) 
 
     if (unreadCount === 0) return
 
+    // Capture unread ids before markAllRead updates readAt.
+    // This keeps the current visit visually highlighted even after the badge clears.
     const unreadIds = notifications
       .filter((notification) => !notification.readAt)
       .map((notification) => notification.id)
@@ -71,10 +84,17 @@ export const NotificationScreen: FC<NotificationScreenProps> = ({ navigation }) 
   }, [isFocused, markAllRead, notifications, unreadCount])
 
   const handleRefresh = async () => {
+    // A manual refresh counts as re-seeing the inbox, so temporary highlights are removed.
     setHighlightedNotificationIds(new Set())
     setRefreshing(true)
     await refresh()
     setRefreshing(false)
+  }
+
+  const handleScheduleMockNotification = async () => {
+    setScheduling(true)
+    await scheduleMockNotification()
+    setScheduling(false)
   }
 
   const renderNotification: ListRenderItem<AppNotification> = ({ item }) => (
@@ -99,7 +119,23 @@ export const NotificationScreen: FC<NotificationScreenProps> = ({ navigation }) 
         <Text style={themed($headerTitle)} weight="bold">
           Notifications
         </Text>
-        <View style={$headerSpacer} />
+        {__DEV__ ? (
+          <TouchableOpacity
+            hitSlop={8}
+            style={$headerAction}
+            activeOpacity={0.7}
+            disabled={isScheduling}
+            onPress={handleScheduleMockNotification}
+          >
+            {isScheduling ? (
+              <ActivityIndicator size="small" color={colors.textDim} />
+            ) : (
+              <Ionicons name="paper-plane-outline" size={20} color={colors.textDim} />
+            )}
+          </TouchableOpacity>
+        ) : (
+          <View style={$headerSpacer} />
+        )}
       </View>
 
       {isLoading && notifications.length === 0 ? (
@@ -211,6 +247,13 @@ const $headerTitle: ThemedStyle<TextStyle> = ({ colors }) => ({
 
 const $headerSpacer: ViewStyle = {
   width: 20,
+}
+
+const $headerAction: ViewStyle = {
+  width: 24,
+  height: 24,
+  alignItems: "center",
+  justifyContent: "center",
 }
 
 const $loadingState: ThemedStyle<ViewStyle> = ({ spacing }) => ({

@@ -94,6 +94,7 @@ function AppHeader() {
   } = useAppTheme()
   const navigation = useNavigation<NavigationProp<AppStackParamList>>()
   const { unreadCount } = useNotifications()
+  // Keep the header compact for large unread counts, matching common badge UX.
   const badgeLabel = unreadCount > 99 ? "99+" : String(unreadCount)
 
   return (
@@ -104,6 +105,7 @@ function AppHeader() {
         onPress={() => navigation.navigate("Notifications")}
       >
         <Ionicons name="notifications-outline" size={22} color={colors.tint} />
+        {/* The badge is driven by persisted read state from NotificationProvider. */}
         {unreadCount > 0 && (
           <View style={themed($notificationBadge)}>
             <Text style={themed($notificationBadgeText)} weight="bold">

@@ -5,6 +5,14 @@ import { sortNotificationsNewestFirst } from "./sortNotifications"
 
 const MOCK_NOTIFICATIONS: AppNotification[] = [
   {
+    id: "announcement_moon_sighting_update",
+    title: "Moon sighting update",
+    message:
+      "The mosque will share the confirmed Eid announcement after Maghrib.",
+    type: "announcement",
+    createdAt: "2026-06-04T20:45:00.000Z",
+  },
+  {
     id: "announcement_eid_volunteers_needed",
     title: "Volunteers needed",
     message: "Please register at the office if you can help with Eid preparation.",
@@ -55,6 +63,27 @@ const MOCK_NOTIFICATIONS: AppNotification[] = [
     message: "Prayer reminders and mosque updates will appear here.",
     type: "system",
     createdAt: "2026-06-03T12:00:00.000Z",
+  },
+  {
+    id: "system_notifications",
+    title: "Prayer update",
+    message: "Prayer reminders and mosque updates will appear here.",
+    type: "system",
+    createdAt: "2026-06-04T20:40:00.000Z",
+  },
+  {
+    id: "4",
+    title: "Prayer update",
+    message: "Prayer reminders and mosque updates will appear here.",
+    type: "system",
+    createdAt: "2026-06-04T21:40:00.000Z",
+  },
+  {
+    id: "5",
+    title: "Prayer update",
+    message: "Prayer reminders and mosque updates will appear here.",
+    type: "system",
+    createdAt: "2026-06-04T21:50:00.000Z",
   },
 ]
 
