@@ -2,8 +2,9 @@ import { NavigationContainer } from "@react-navigation/native"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
 
 import Config from "@/config"
-import { ErrorBoundary } from "@/screens/ErrorScreen/ErrorBoundary"
 import { AdminLoginScreen } from "@/screens/AdminLoginScreen/AdminLoginScreen"
+import { ErrorBoundary } from "@/screens/ErrorScreen/ErrorBoundary"
+import { NotificationScreen } from "@/screens/NotificationScreen/NotificationScreen"
 import { useAppTheme } from "@/theme/context"
 
 import { MainTabNavigator } from "./MainTabNavigator"
@@ -32,6 +33,7 @@ function AppStack() {
         component={AdminLoginScreen}
         options={{ presentation: "modal" }}
       />
+      <Stack.Screen name="Notifications" component={NotificationScreen} />
     </Stack.Navigator>
   )
 }
