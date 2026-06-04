@@ -97,12 +97,18 @@ export const NotificationProvider: FC<PropsWithChildren> = ({ children }) => {
       if (unseenNotifications.length === 0) return
 
       const scheduledNotificationIds: string[] = []
+      const nextUnreadCount = countUnreadNotifications(
+        mergeReadState(nextNotifications, currentPersistedState),
+      )
 
       for (const [index, notification] of unseenNotifications.entries()) {
         // Stagger multiple new mock rows so iOS does not receive a burst at the same second.
+        // The badge number is attached to the scheduled notification so iOS can update
+        // the app icon even while the app is locked/backgrounded.
         const scheduledId = await notificationDeviceService.scheduleLocalNotification(
           notification,
           5 + index * 2,
+          nextUnreadCount,
         )
         if (scheduledId) scheduledNotificationIds.push(notification.id)
       }
@@ -169,15 +175,24 @@ export const NotificationProvider: FC<PropsWithChildren> = ({ children }) => {
     const notification = notifications[0] ?? (await mockNotificationService.getNotifications())[0]
     if (!notification) return { scheduledId: null, pendingCount: null }
 
-    const scheduledId = await notificationDeviceService.scheduleLocalNotification(notification)
+    const scheduledId = await notificationDeviceService.scheduleLocalNotification(
+      notification,
+      5,
+      Math.max(unreadCount, 1),
+    )
     const pendingCount = await notificationDeviceService.getScheduledNotificationCount()
 
     return { scheduledId, pendingCount }
-  }, [notifications])
+  }, [notifications, unreadCount])
 
   useEffect(() => {
     refresh()
   }, [refresh])
+
+  useEffect(() => {
+    // Keep the app icon badge aligned with the same unread count shown on the bell icon.
+    notificationDeviceService.setAppBadgeCount(unreadCount)
+  }, [unreadCount])
 
   useEffect(() => {
     // Device notification setup is isolated here so screens stay focused on rendering.

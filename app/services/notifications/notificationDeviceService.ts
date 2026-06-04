@@ -168,6 +168,7 @@ class NotificationDeviceService {
   async scheduleLocalNotification(
     notification: AppNotification,
     seconds = 5,
+    badgeCount?: number,
   ): Promise<string | null> {
     const Notifications = getNotificationsModule()
     if (!Notifications) return null
@@ -189,6 +190,7 @@ class NotificationDeviceService {
       content: {
         title: scheduledNotification.title,
         body: scheduledNotification.message,
+        badge: badgeCount,
         sound: "default",
         data: toLocalNotificationData(scheduledNotification),
       },
@@ -205,6 +207,18 @@ class NotificationDeviceService {
 
     const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync()
     return scheduledNotifications.length
+  }
+
+  async setAppBadgeCount(count: number): Promise<boolean> {
+    const Notifications = getNotificationsModule()
+    if (!Notifications) return false
+
+    // iOS requires badge permission; if it is unavailable/denied, Expo returns false.
+    try {
+      return await Notifications.setBadgeCountAsync(count)
+    } catch {
+      return false
+    }
   }
 }
 

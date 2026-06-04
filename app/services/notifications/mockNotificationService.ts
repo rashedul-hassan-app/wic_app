@@ -7,6 +7,14 @@ import { sortNotificationsNewestFirst } from "./sortNotifications"
 // If we use "Z", JavaScript treats the value as UTC and shifts the displayed date/time.
 const MOCK_NOTIFICATIONS: AppNotification[] = [
   {
+    id: "announcement_food_bank_drive",
+    title: "Food bank drive",
+    message: "Please bring non-perishable food donations to the mosque lobby this weekend.",
+    type: "announcement",
+    createdAt: "2026-06-04T22:35:00",
+    data: { screen: "Announcements" },
+  },
+  {
     id: "announcement_weekend_school_registration",
     title: "Weekend school registration",
     message: "Registration for weekend Islamic school opens after Jumu'ah this Friday.",
