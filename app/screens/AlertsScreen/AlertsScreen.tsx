@@ -24,31 +24,23 @@ export function AlertsScreen() {
   // 🔥 REACTIVE SUBSCRIPTION (FIXES ANDROID BUG)
   const events = useAlertStore((s) => s.events)
 
-  const sorted = useMemo(() => [...events].reverse(), [events])
-  const now = useMemo(() => new Date(), [])
-  const upcomingEvents = useMemo(
-    () =>
-      sorted.filter((event) => {
-        if (!event.eventAt) return false
-        return new Date(event.eventAt) >= now
-      }),
-    [sorted, now],
-  )
-  const olderEvents = useMemo(
-    () =>
-      sorted.filter((event) => {
-        if (!event.eventAt) return true
-        return new Date(event.eventAt) < now
-      }),
-    [sorted, now],
-  )
-  const sections = useMemo(
-    () => [
-      ...(upcomingEvents.length ? [{ title: "Upcoming", data: upcomingEvents }] : []),
-      ...(olderEvents.length ? [{ title: "Older", data: olderEvents }] : []),
-    ],
-    [upcomingEvents, olderEvents],
-  )
+  const sections = useMemo(() => {
+    const now = new Date()
+
+    const sorted = [...events].reverse()
+
+    const upcoming = sorted.filter((e) => !e.read && new Date(e.eventAt) > now)
+
+    const recent = sorted.filter((e) => !e.read && new Date(e.eventAt) <= now)
+
+    const older = sorted.filter((e) => e.read)
+
+    return [
+      ...(upcoming.length ? [{ title: "Upcoming", data: upcoming }] : []),
+      ...(recent.length ? [{ title: "Recent", data: recent }] : []),
+      ...(older.length ? [{ title: "Older", data: older }] : []),
+    ]
+  }, [events])
 
   const markAllAsRead = useAlertStore((s) => s.markAllAsRead)
   const clearAlerts = useAlertStore((s) => s.clear)
