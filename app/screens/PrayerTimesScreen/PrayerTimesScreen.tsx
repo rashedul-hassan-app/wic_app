@@ -38,7 +38,6 @@ export const PrayerTimesScreen: FC<MainTabScreenProps<"Timetable">> = ({ navigat
   // Today's prayer data drives the live info cards (always real-time)
   const { data: todayData } = usePrayerTimes(todayISO())
   const currentPrayer = useCurrentPrayer(todayData?.prayers ?? [])
-  console.log(todayData, currentPrayer)
 
   usePrayerAlerts(currentPrayer, todayData?.prayers ?? [])
 

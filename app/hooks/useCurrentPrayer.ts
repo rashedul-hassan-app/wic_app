@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
+import { getDay, parseISO } from "date-fns"
 
-import type { PrayerTime } from "@/models/prayer.types"
+import type { JumuahTime, PrayerTime } from "@/models/prayer.types"
 
 export interface CurrentPrayerInfo {
   prayer: PrayerTime
@@ -35,10 +36,6 @@ function findNextJamaah(prayers: PrayerTime[], nowMin: number): CurrentPrayerInf
     if (!prayer.jamaah) continue
     const jamaahMin = toMinutes(prayer.jamaah)
     const minutesUntil = jamaahMin - nowMin
-    // warn when jamaah is within the next 10 minutes (strictly >0)
-    if (minutesUntil > 0 && minutesUntil <= 11) {
-      console.log("Warning: next jamaah is within 11 minutes! Check your prayer times data.")
-    }
     if (minutesUntil > 0) {
       return {
         prayer,
@@ -53,12 +50,7 @@ function findNextJamaah(prayers: PrayerTime[], nowMin: number): CurrentPrayerInf
 
   const jamaahMin = toMinutes(firstWithJamaah.jamaah)
   const minutesUntilTomorrow = 1440 - nowMin + jamaahMin
-  // If tomorrow's first jamaah is within 10 minutes, warn as well
-  if (minutesUntilTomorrow > 0 && minutesUntilTomorrow <= 10) {
-    console.log(
-      "Warning: next jamaah (tomorrow) is within 10 minutes! Check your prayer times data.",
-    )
-  }
+
 
   return {
     prayer: firstWithJamaah,
@@ -87,6 +79,7 @@ function compute(prayers: PrayerTime[], now: Date): CurrentPrayerInfo | null {
       prayer: prayers[prayers.length - 1],
       countdownLabel: formatCountdown(fajrMin - nowMin),
       nextJamaah,
+      minutesLeft: fajrMin - nowMin,
     }
   }
 

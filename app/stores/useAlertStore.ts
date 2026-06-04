@@ -1,10 +1,13 @@
 import { create } from "zustand"
 
+import { load, save } from "@/utils/storage"
+
 export type AlertEvent = {
   id: string
   title: string
   time: string
-  read: boolean
+  eventAt: string
+  read?: boolean
 }
 
 type AlertState = {
@@ -14,19 +17,34 @@ type AlertState = {
   markAllAsRead: () => void
 }
 
-export const useAlertStore = create<AlertState>((set, get) => ({
-  events: [],
+const ALERT_EVENTS_STORAGE_KEY = "ALERT_EVENTS"
+const persistedEvents = load<AlertEvent[]>(ALERT_EVENTS_STORAGE_KEY) ?? []
+
+function persistEvents(events: AlertEvent[]) {
+  save(ALERT_EVENTS_STORAGE_KEY, events)
+}
+
+export const useAlertStore = create<AlertState>((set) => ({
+  events: persistedEvents,
 
   addEvents: (events) =>
     set((state) => {
       const map = new Map(state.events.map((e) => [e.id, e]))
       events.forEach((e) => map.set(e.id, e))
-      return { events: Array.from(map.values()) }
+      const nextEvents = Array.from(map.values())
+      persistEvents(nextEvents)
+      return { events: nextEvents }
     }),
 
-  clear: () => set({ events: [] }),
+  clear: () => {
+    persistEvents([])
+    return set({ events: [] })
+  },
+
   markAllAsRead: () =>
-    set((state) => ({
-      events: state.events.map((e) => ({ ...e, read: true })),
-    })),
+    set((state) => {
+      const nextEvents = state.events.map((e) => ({ ...e, read: true }))
+      persistEvents(nextEvents)
+      return { events: nextEvents }
+    }),
 }))

@@ -1,7 +1,6 @@
 import { differenceInCalendarDays, parseISO } from "date-fns"
 
 import type { DayPrayerTimes, PrayerTime } from "@/models/prayer.types"
-import { getCurrentTimeHHMM } from "@/utils/prayerTime"
 
 import type { IPrayerService } from "./IPrayerService"
 
