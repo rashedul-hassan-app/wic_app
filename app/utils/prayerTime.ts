@@ -18,3 +18,27 @@ export function formatPrayerTime(time24h: string): string {
 export function formatDisplayDate(isoDate: string): string {
   return format(parseISO(isoDate), "EEE • dd MMM yyyy").toUpperCase()
 }
+
+export function addMinutes(date: Date, minutes: number) {
+  return new Date(date.getTime() + minutes * 60_000)
+}
+
+export function toDateFromHHMM(hhmm: string): Date {
+  const [h, m] = hhmm.split(":").map(Number)
+  const d = new Date()
+  d.setHours(h, m, 0, 0)
+  return d
+}
+export function toDate(hhmm: string) {
+  const [h, m] = hhmm.split(":").map(Number)
+  const d = new Date()
+  d.setHours(h, m, 0, 0)
+  return d
+}
+
+export function getCurrentTimeHHMM(): string {
+  const now = new Date()
+  const h = String(now.getHours()).padStart(2, "0")
+  const m = String(now.getMinutes()).padStart(2, "0")
+  return `${h}:${m}`
+}

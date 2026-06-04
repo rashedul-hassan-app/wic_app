@@ -5,8 +5,9 @@ import { addDays, format, parseISO, subDays } from "date-fns"
 
 import { Screen } from "@/components/Screen"
 import { Text } from "@/components/Text"
-import { useAlerts } from "@/hooks/useAlerts"
+import { useAlertBadge } from "@/hooks/useAlertBadge"
 import { useCurrentPrayer } from "@/hooks/useCurrentPrayer"
+import { usePrayerAlerts } from "@/hooks/usePrayerAlerts"
 import { usePrayerTimes } from "@/hooks/usePrayerTimes"
 import type { MainTabScreenProps } from "@/navigators/navigationTypes"
 import { useAppTheme } from "@/theme/context"
@@ -37,6 +38,9 @@ export const PrayerTimesScreen: FC<MainTabScreenProps<"Timetable">> = ({ navigat
   // Today's prayer data drives the live info cards (always real-time)
   const { data: todayData } = usePrayerTimes(todayISO())
   const currentPrayer = useCurrentPrayer(todayData?.prayers ?? [])
+  console.log(todayData, currentPrayer)
+
+  usePrayerAlerts(currentPrayer, todayData?.prayers ?? [])
 
   const handlePrev = () => setSelectedDate(format(subDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
 
@@ -92,26 +96,20 @@ function AppHeader({ navigation }: { navigation: MainTabScreenProps<"Timetable">
     theme: { colors },
   } = useAppTheme()
 
-  const { unreadCount } = useAlerts()
+  const { count } = useAlertBadge()
 
   return (
     <View style={themed($header)}>
       <TouchableOpacity
         hitSlop={8}
-        onPress={() =>
-          navigation.navigate("Main", {
-            screen: "Alerts",
-          })
-        }
+        onPress={() => navigation.navigate("Main", { screen: "Alerts" })}
       >
-        <View>
+        <View style={themed($iconWrapper)}>
           <Ionicons name="notifications-outline" size={22} color={colors.tint} />
 
-          {unreadCount > 0 && (
+          {count > 0 && (
             <View style={themed($badge)}>
-              <Text size="xxs" style={themed($badgeText)}>
-                {unreadCount}
-              </Text>
+              <Text style={themed($badgeText)}>{count > 9 ? "9+" : count}</Text>
             </View>
           )}
         </View>
@@ -160,6 +158,14 @@ const $menuButton: ThemedStyle<ViewStyle> = ({ spacing }) => ({
   marginLeft: spacing.xxs,
 })
 
+const $iconWrapper: ThemedStyle<ViewStyle> = () => ({
+  position: "relative",
+  width: 26,
+  height: 26,
+  justifyContent: "center",
+  alignItems: "center",
+})
+
 const $loadingContainer: ThemedStyle<ViewStyle> = ({ spacing }) => ({
   paddingVertical: spacing.xl,
   alignItems: "center",
@@ -173,20 +179,21 @@ const $footer: ThemedStyle<TextStyle> = ({ colors, spacing }) => ({
   marginBottom: spacing.md,
 })
 
-const $badge: ThemedStyle<ViewStyle> = ({ colors }) => ({
+const $badge: ThemedStyle<ViewStyle> = ({ colors, spacing }) => ({
   position: "absolute",
   top: -6,
-  right: -8,
-  minWidth: 16,
-  height: 16,
-  borderRadius: 8,
+  right: -6,
+  minWidth: 18,
+  height: 18,
+  borderRadius: 9,
   backgroundColor: colors.tint,
   alignItems: "center",
   justifyContent: "center",
-  paddingHorizontal: 4,
+  paddingHorizontal: spacing.xs,
 })
 
 const $badgeText: ThemedStyle<TextStyle> = ({ colors }) => ({
   color: colors.background,
   fontSize: 10,
+  lineHeight: 14,
 })

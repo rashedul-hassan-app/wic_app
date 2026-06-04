@@ -30,6 +30,7 @@ export function MainTabNavigator() {
 
   return (
     <Tab.Navigator
+      initialRouteName="Timetable"
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,

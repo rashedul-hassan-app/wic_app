@@ -26,13 +26,11 @@ export function PrayerInfoCards({ currentPrayer, suhoorEnds }: PrayerInfoCardsPr
       <InfoCard
         label="Next Jama'ah"
         title={currentPrayer?.nextJamaah?.prayer.label ?? "—"}
-        subtitle={currentPrayer?.nextJamaah ? `${currentPrayer.nextJamaah.countdownLabel} left` : ""}
+        subtitle={
+          currentPrayer?.nextJamaah ? `${currentPrayer.nextJamaah.countdownLabel} left` : ""
+        }
       />
-      <InfoCard
-        label="Suhoor Ends"
-        title={formatPrayerTime(suhoorEnds)}
-        subtitle=""
-      />
+      <InfoCard label="Suhoor Ends" title={formatPrayerTime(suhoorEnds)} subtitle="" />
     </View>
   )
 }
@@ -45,7 +43,10 @@ interface InfoCardProps {
 }
 
 function InfoCard({ label, title, subtitle, isActive = false }: InfoCardProps) {
-  const { themed, theme: { colors } } = useAppTheme()
+  const {
+    themed,
+    theme: { colors },
+  } = useAppTheme()
 
   return (
     <View style={[themed($card), isActive && { borderColor: colors.tint, borderWidth: 1 }]}>
@@ -53,9 +54,7 @@ function InfoCard({ label, title, subtitle, isActive = false }: InfoCardProps) {
       <Text style={[themed($cardTitle), isActive && { color: colors.tintLight }]} weight="semiBold">
         {title}
       </Text>
-      {subtitle ? (
-        <Text style={themed($cardSubtitle)}>{subtitle}</Text>
-      ) : null}
+      {subtitle ? <Text style={themed($cardSubtitle)}>{subtitle}</Text> : null}
     </View>
   )
 }
