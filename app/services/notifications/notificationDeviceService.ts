@@ -110,7 +110,7 @@ class NotificationDeviceService {
       handleNotification: async () => ({
         shouldShowBanner: true,
         shouldShowList: true,
-        shouldPlaySound: false,
+        shouldPlaySound: true,
         shouldSetBadge: false,
       }),
     })
@@ -189,6 +189,7 @@ class NotificationDeviceService {
       content: {
         title: scheduledNotification.title,
         body: scheduledNotification.message,
+        sound: "default",
         data: toLocalNotificationData(scheduledNotification),
       },
       trigger: {
@@ -196,6 +197,14 @@ class NotificationDeviceService {
         seconds,
       },
     })
+  }
+
+  async getScheduledNotificationCount(): Promise<number | null> {
+    const Notifications = getNotificationsModule()
+    if (!Notifications) return null
+
+    const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync()
+    return scheduledNotifications.length
   }
 }
 

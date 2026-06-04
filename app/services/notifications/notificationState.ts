@@ -4,10 +4,14 @@ import type { AppNotification } from "@/models/notification.types"
 // This lets mock/API notification content change while preserving local read history.
 export type PersistedNotificationState = {
   readById: Record<string, string>
+  knownById: Record<string, string>
+  scheduledById: Record<string, string>
 }
 
 export const emptyPersistedNotificationState: PersistedNotificationState = {
   readById: {},
+  knownById: {},
+  scheduledById: {},
 }
 
 export function parsePersistedNotificationState(value?: string): PersistedNotificationState {
@@ -17,6 +21,8 @@ export function parsePersistedNotificationState(value?: string): PersistedNotifi
     const parsed = JSON.parse(value) as Partial<PersistedNotificationState>
     return {
       readById: parsed.readById ?? {},
+      knownById: parsed.knownById ?? {},
+      scheduledById: parsed.scheduledById ?? {},
     }
   } catch {
     return emptyPersistedNotificationState
@@ -58,10 +64,14 @@ export function markNotificationsRead(
     },
     { ...persistedState.readById },
   )
+  const nextPersistedState = {
+    ...persistedState,
+    readById,
+  }
 
   return {
-    notifications: mergeReadState(notifications, { readById }),
-    persistedState: { readById },
+    notifications: mergeReadState(notifications, nextPersistedState),
+    persistedState: nextPersistedState,
   }
 }
 
@@ -83,9 +93,71 @@ export function markNotificationRead(
     },
     { ...persistedState.readById },
   )
+  const nextPersistedState = {
+    ...persistedState,
+    readById,
+  }
 
   return {
-    notifications: mergeReadState(notifications, { readById }),
-    persistedState: { readById },
+    notifications: mergeReadState(notifications, nextPersistedState),
+    persistedState: nextPersistedState,
+  }
+}
+
+export function hasNotificationHistory(persistedState: PersistedNotificationState): boolean {
+  return (
+    Object.keys(persistedState.readById).length > 0 ||
+    Object.keys(persistedState.knownById).length > 0 ||
+    Object.keys(persistedState.scheduledById).length > 0
+  )
+}
+
+export function getUnseenNotifications(
+  notifications: AppNotification[],
+  persistedState: PersistedNotificationState,
+): AppNotification[] {
+  return notifications.filter(
+    (notification) =>
+      !persistedState.readById[notification.id] &&
+      !persistedState.knownById[notification.id] &&
+      !persistedState.scheduledById[notification.id],
+  )
+}
+
+export function markNotificationsKnown(
+  notifications: AppNotification[],
+  persistedState: PersistedNotificationState,
+  now: string,
+): PersistedNotificationState {
+  const knownById = notifications.reduce<Record<string, string>>(
+    (acc, notification) => {
+      acc[notification.id] = acc[notification.id] ?? now
+      return acc
+    },
+    { ...persistedState.knownById },
+  )
+
+  return {
+    ...persistedState,
+    knownById,
+  }
+}
+
+export function markNotificationsScheduled(
+  notificationIds: string[],
+  persistedState: PersistedNotificationState,
+  now: string,
+): PersistedNotificationState {
+  const scheduledById = notificationIds.reduce<Record<string, string>>(
+    (acc, id) => {
+      acc[id] = acc[id] ?? now
+      return acc
+    },
+    { ...persistedState.scheduledById },
+  )
+
+  return {
+    ...persistedState,
+    scheduledById,
   }
 }

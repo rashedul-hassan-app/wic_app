@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react"
 import { useMMKVString } from "react-native-mmkv"
@@ -15,7 +16,11 @@ import { mockNotificationService } from "@/services/notifications/mockNotificati
 import { notificationDeviceService } from "@/services/notifications/notificationDeviceService"
 import {
   countUnreadNotifications,
+  getUnseenNotifications,
+  hasNotificationHistory,
+  markNotificationsKnown,
   markNotificationsRead,
+  markNotificationsScheduled,
   mergeReadState,
   parsePersistedNotificationState,
   serializePersistedNotificationState,
@@ -32,7 +37,10 @@ export type NotificationContextType = {
   refresh: () => Promise<void>
   markAllRead: () => void
   addNotification: (notification: AppNotification) => void
-  scheduleMockNotification: () => Promise<void>
+  scheduleMockNotification: () => Promise<{
+    scheduledId: string | null
+    pendingCount: number | null
+  }>
 }
 
 export const NotificationContext = createContext<NotificationContextType | null>(null)
@@ -49,6 +57,7 @@ export const NotificationProvider: FC<PropsWithChildren> = ({ children }) => {
     () => parsePersistedNotificationState(persistedStateString),
     [persistedStateString],
   )
+  const persistedStateRef = useRef(persistedState)
 
   const notifications = useMemo(
     () =>
@@ -60,6 +69,62 @@ export const NotificationProvider: FC<PropsWithChildren> = ({ children }) => {
 
   const unreadCount = useMemo(() => countUnreadNotifications(notifications), [notifications])
 
+  useEffect(() => {
+    persistedStateRef.current = persistedState
+  }, [persistedState])
+
+  const syncMockNotificationScheduling = useCallback(
+    async (nextNotifications: AppNotification[]) => {
+      if (!__DEV__) return
+
+      const currentPersistedState = persistedStateRef.current
+      const now = new Date().toISOString()
+
+      if (!hasNotificationHistory(currentPersistedState)) {
+        // First app run should only establish the baseline feed.
+        // Without this, every existing mock row would fire at once after install.
+        const nextPersistedState = markNotificationsKnown(
+          nextNotifications,
+          currentPersistedState,
+          now,
+        )
+        persistedStateRef.current = nextPersistedState
+        setPersistedStateString(serializePersistedNotificationState(nextPersistedState))
+        return
+      }
+
+      const unseenNotifications = getUnseenNotifications(nextNotifications, currentPersistedState)
+      if (unseenNotifications.length === 0) return
+
+      const scheduledNotificationIds: string[] = []
+
+      for (const [index, notification] of unseenNotifications.entries()) {
+        // Stagger multiple new mock rows so iOS does not receive a burst at the same second.
+        const scheduledId = await notificationDeviceService.scheduleLocalNotification(
+          notification,
+          5 + index * 2,
+        )
+        if (scheduledId) scheduledNotificationIds.push(notification.id)
+      }
+
+      // Mark all unseen rows as known so refresh/app reload does not keep re-triggering them.
+      // Successful schedules also get tracked separately for interview/debug visibility.
+      const knownPersistedState = markNotificationsKnown(
+        unseenNotifications,
+        currentPersistedState,
+        now,
+      )
+      const nextPersistedState = markNotificationsScheduled(
+        scheduledNotificationIds,
+        knownPersistedState,
+        now,
+      )
+      persistedStateRef.current = nextPersistedState
+      setPersistedStateString(serializePersistedNotificationState(nextPersistedState))
+    },
+    [setPersistedStateString],
+  )
+
   const refresh = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -69,12 +134,13 @@ export const NotificationProvider: FC<PropsWithChildren> = ({ children }) => {
       // only the service implementation should change, not the screen UI.
       const result = await mockNotificationService.getNotifications()
       setSourceNotifications(result)
+      await syncMockNotificationScheduling(result)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to load notifications.")
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [syncMockNotificationScheduling])
 
   const markAllRead = useCallback(() => {
     if (unreadCount === 0) return
@@ -101,9 +167,12 @@ export const NotificationProvider: FC<PropsWithChildren> = ({ children }) => {
     // Development helper: schedule the newest mock notification locally.
     // Production push/API work can reuse the same AppNotification shape later.
     const notification = notifications[0] ?? (await mockNotificationService.getNotifications())[0]
-    if (!notification) return
+    if (!notification) return { scheduledId: null, pendingCount: null }
 
-    await notificationDeviceService.scheduleLocalNotification(notification)
+    const scheduledId = await notificationDeviceService.scheduleLocalNotification(notification)
+    const pendingCount = await notificationDeviceService.getScheduledNotificationCount()
+
+    return { scheduledId, pendingCount }
   }, [notifications])
 
   useEffect(() => {

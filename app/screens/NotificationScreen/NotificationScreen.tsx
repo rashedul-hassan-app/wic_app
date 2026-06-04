@@ -1,6 +1,7 @@
 import { FC, useEffect, useState } from "react"
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   ListRenderItem,
   TextStyle,
@@ -32,6 +33,8 @@ const NOTIFICATION_ICONS: Record<NotificationType, IoniconName> = {
 }
 
 function formatNotificationDate(value: string) {
+  // parseISO formats local mock timestamps in the device timezone.
+  // Mock data should avoid a trailing "Z" unless the value is intentionally UTC.
   return format(parseISO(value), "MMM d, h:mm a")
 }
 
@@ -58,6 +61,14 @@ export const NotificationScreen: FC<NotificationScreenProps> = ({ navigation }) 
   const [highlightedNotificationIds, setHighlightedNotificationIds] = useState<Set<string>>(
     () => new Set(),
   )
+
+  useEffect(() => {
+    if (!isFocused) return
+
+    // Opening the inbox reloads the mock feed.
+    // In dev, NotificationProvider uses that refresh to schedule truly new mock rows once.
+    refresh()
+  }, [isFocused, refresh])
 
   useEffect(() => {
     if (!isFocused) {
@@ -93,8 +104,23 @@ export const NotificationScreen: FC<NotificationScreenProps> = ({ navigation }) 
 
   const handleScheduleMockNotification = async () => {
     setScheduling(true)
-    await scheduleMockNotification()
-    setScheduling(false)
+    try {
+      const result = await scheduleMockNotification()
+
+      Alert.alert(
+        result.scheduledId ? "Notification scheduled" : "Notification not scheduled",
+        result.scheduledId
+          ? `iOS accepted the notification. Pending notifications: ${result.pendingCount ?? "unknown"}. Lock the phone and wait about 5 seconds.`
+          : "The native notification module or permission was not available.",
+      )
+    } catch (e) {
+      Alert.alert(
+        "Notification failed",
+        e instanceof Error ? e.message : "Unable to schedule the test notification.",
+      )
+    } finally {
+      setScheduling(false)
+    }
   }
 
   const renderNotification: ListRenderItem<AppNotification> = ({ item }) => (
