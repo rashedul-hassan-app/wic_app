@@ -1,4 +1,4 @@
-import { FC, useEffect, useState } from "react"
+import { FC, memo, useCallback, useEffect, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
@@ -94,15 +94,15 @@ export const NotificationScreen: FC<NotificationScreenProps> = ({ navigation }) 
     markAllRead()
   }, [isFocused, markAllRead, notifications, unreadCount])
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     // A manual refresh counts as re-seeing the inbox, so temporary highlights are removed.
     setHighlightedNotificationIds(new Set())
     setRefreshing(true)
     await refresh()
     setRefreshing(false)
-  }
+  }, [refresh])
 
-  const handleScheduleMockNotification = async () => {
+  const handleScheduleMockNotification = useCallback(async () => {
     setScheduling(true)
     try {
       const result = await scheduleMockNotification()
@@ -121,11 +121,24 @@ export const NotificationScreen: FC<NotificationScreenProps> = ({ navigation }) 
     } finally {
       setScheduling(false)
     }
-  }
+  }, [scheduleMockNotification])
 
-  const renderNotification: ListRenderItem<AppNotification> = ({ item }) => (
-    <NotificationRow notification={item} isHighlighted={highlightedNotificationIds.has(item.id)} />
+  const keyExtractor = useCallback((item: AppNotification) => item.id, [])
+
+  // Memoize renderItem so FlatList does not receive a new renderer on every parent render.
+  // It only changes when the temporary highlight set changes.
+  const renderNotification: ListRenderItem<AppNotification> = useCallback(
+    ({ item }) => (
+      <NotificationRow
+        notification={item}
+        isHighlighted={highlightedNotificationIds.has(item.id)}
+      />
+    ),
+    [highlightedNotificationIds],
   )
+
+  // Keeping the separator renderer stable avoids extra FlatList work during refresh/highlight updates.
+  const renderSeparator = useCallback(() => <View style={themed($separator)} />, [themed])
 
   return (
     <Screen
@@ -187,12 +200,19 @@ export const NotificationScreen: FC<NotificationScreenProps> = ({ navigation }) 
         <FlatList
           data={notifications}
           renderItem={renderNotification}
-          keyExtractor={(item) => item.id}
+          keyExtractor={keyExtractor}
+          // extraData makes highlight changes explicit because the data array can stay the same.
+          extraData={highlightedNotificationIds}
+          // Tune virtualization for a notification inbox: render a small first batch,
+          // then keep nearby rows mounted without over-rendering a long future list.
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={5}
           contentContainerStyle={themed([
             $listContent,
             notifications.length === 0 && $emptyListContent,
           ])}
-          ItemSeparatorComponent={() => <View style={themed($separator)} />}
+          ItemSeparatorComponent={renderSeparator}
           refreshing={isRefreshing}
           onRefresh={handleRefresh}
           ListEmptyComponent={<NotificationEmptyState />}
@@ -207,7 +227,10 @@ interface NotificationRowProps {
   isHighlighted: boolean
 }
 
-function NotificationRow({ notification, isHighlighted }: NotificationRowProps) {
+const NotificationRow = memo(function NotificationRow({
+  notification,
+  isHighlighted,
+}: NotificationRowProps) {
   const {
     themed,
     theme: { colors },
@@ -230,7 +253,7 @@ function NotificationRow({ notification, isHighlighted }: NotificationRowProps) 
       </View>
     </View>
   )
-}
+})
 
 function NotificationEmptyState() {
   const {
