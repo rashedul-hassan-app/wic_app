@@ -71,6 +71,7 @@ export const NotificationScreen: FC<NotificationScreenProps> = ({ navigation }) 
   }, [isFocused, markAllRead, notifications, unreadCount])
 
   const handleRefresh = async () => {
+    setHighlightedNotificationIds(new Set())
     setRefreshing(true)
     await refresh()
     setRefreshing(false)

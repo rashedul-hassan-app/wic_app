@@ -19,6 +19,7 @@ import {
   parsePersistedNotificationState,
   serializePersistedNotificationState,
 } from "@/services/notifications/notificationState"
+import { sortNotificationsNewestFirst } from "@/services/notifications/sortNotifications"
 
 const NOTIFICATION_STATE_KEY = "NotificationProvider.state"
 
@@ -49,9 +50,7 @@ export const NotificationProvider: FC<PropsWithChildren> = ({ children }) => {
     () =>
       // The mock/API feed is the source of notification content; MMKV only stores read timestamps.
       // Merging here keeps unread count and row UI correct across app restarts.
-      mergeReadState(sourceNotifications, persistedState).sort(
-        (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
-      ),
+      sortNotificationsNewestFirst(mergeReadState(sourceNotifications, persistedState)),
     [persistedState, sourceNotifications],
   )
 
@@ -84,7 +83,7 @@ export const NotificationProvider: FC<PropsWithChildren> = ({ children }) => {
   const addNotification = useCallback((notification: AppNotification) => {
     setSourceNotifications((current) => {
       if (current.some((item) => item.id === notification.id)) return current
-      return [notification, ...current]
+      return sortNotificationsNewestFirst([notification, ...current])
     })
   }, [])
 

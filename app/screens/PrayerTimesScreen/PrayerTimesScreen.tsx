@@ -160,8 +160,8 @@ const $notificationButton: ViewStyle = {
 
 const $notificationBadge: ThemedStyle<ViewStyle> = ({ colors }) => ({
   position: "absolute",
-  top: -4,
-  right: -8,
+  top: -5,
+  right: 0,
   minWidth: 16,
   height: 16,
   borderRadius: 8,
