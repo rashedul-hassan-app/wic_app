@@ -5,67 +5,40 @@ import { sortNotificationsNewestFirst } from "./sortNotifications"
 
 // Mock timestamps intentionally omit "Z" so the app parses them in device local time.
 // If we use "Z", JavaScript treats the value as UTC and shifts the displayed date/time.
+function formatLocalMockTimestamp(date: Date) {
+  const timezoneOffsetMs = date.getTimezoneOffset() * 60 * 1000
+  return new Date(date.getTime() - timezoneOffsetMs).toISOString().slice(0, 19)
+}
+// Offsets keep dynamic demo notifications ordered while still appearing newer 
+function getCurrentLocalMockTimestamp(offsetMinutes = 0) {
+  return formatLocalMockTimestamp(new Date(Date.now() + offsetMinutes * 60 * 1000))
+}
+
 const MOCK_NOTIFICATIONS: AppNotification[] = [
   {
-    id: "announcement_food_bank_drive",
-    title: "Food bank drive",
-    message: "Please bring non-perishable food donations to the mosque lobby this weekend.",
-    type: "announcement",
-    createdAt: "2026-06-04T22:35:00",
-    data: { screen: "Announcements" },
-  },
-  {
-    id: "announcement_weekend_school_registration",
-    title: "Weekend school registration",
-    message: "Registration for weekend Islamic school opens after Jumu'ah this Friday.",
-    type: "announcement",
-    createdAt: "2026-06-04T22:25:00",
-    data: { screen: "Announcements" },
-  },
-  {
-    id: "prayer_tahajjud_program_reminder",
-    title: "Tahajjud program reminder",
-    message: "Join the community Tahajjud program tonight at 3:45 am.",
+    id: "prayer_late_night_reminder",
+    title: "Late night prayer reminder",
+    message: "The mosque will remain open tonight for extra time after Isha.",
     type: "prayer",
-    createdAt: "2026-06-04T22:20:00",
-    data: { prayer: "tahajjud" },
-  },
-  {
-    id: "prayer_fajr_reminder_tomorrow",
-    title: "Fajr reminder",
-    message: "Fajr Jamaah is scheduled for 4:30 am tomorrow.",
-    type: "prayer",
-    createdAt: "2026-06-04T22:05:00",
-    data: { prayer: "fajr" },
-  },
-  {
-    id: "announcement_moon_sighting_update",
-    title: "Moon sighting update",
-    message: "The mosque will share the confirmed Eid announcement after Maghrib.",
-    type: "announcement",
-    createdAt: "2026-06-04T20:45:00",
-  },
-  {
-    id: "announcement_eid_volunteers_needed",
-    title: "Volunteers needed",
-    message: "Please register at the office if you can help with Eid preparation.",
-    type: "announcement",
-    createdAt: "2026-06-04T20:10:00",
-  },
-  {
-    id: "prayer_isha_jamaah_reminder",
-    title: "Isha Jamaah reminder",
-    message: "Isha Jamaah is scheduled for 10:30 pm tonight.",
-    type: "prayer",
-    createdAt: "2026-06-04T19:45:00",
+    // Offsets keep dynamic demo notifications ordered while still appearing newer than fixed mocks.
+    createdAt: getCurrentLocalMockTimestamp(2),
     data: { prayer: "isha" },
   },
   {
-    id: "system_app_updates_enabled",
-    title: "App updates enabled",
-    message: "You will receive mosque updates and prayer reminders here.",
-    type: "system",
-    createdAt: "2026-06-04T18:45:00",
+    id: "late_night_prayer",
+    title: "Late night prayer reminder",
+    message: "The mosque will remain open tonight for extra worship after Isha.",
+    type: "prayer",
+    createdAt: getCurrentLocalMockTimestamp(1),
+    data: { prayer: "isha" },
+  },
+  {
+    id: "class_update",
+    title: "Qur'an class update",
+    message: "Tonight's Qur'an class will begin 15 minutes after Isha Jamaah.",
+    type: "announcement",
+    createdAt: getCurrentLocalMockTimestamp(0),
+    data: { screen: "Announcements" },
   },
   {
     id: "prayer_asr_jamaah",
@@ -84,18 +57,11 @@ const MOCK_NOTIFICATIONS: AppNotification[] = [
     data: { screen: "Timetable" },
   },
   {
-    id: "announcement_parking_notice",
-    title: "Parking notice",
-    message: "Please use the overflow parking area for busy prayer times.",
-    type: "announcement",
-    createdAt: "2026-06-04T10:15:00",
-  },
-  {
-    id: "system_notifications_ready",
-    title: "Notifications ready",
+    id: "system_notifications_enabled",
+    title: "Notifications enabled",
     message: "Prayer reminders and mosque updates will appear here.",
     type: "system",
-    createdAt: "2026-06-03T12:00:00",
+    createdAt: "2026-06-02T12:00:00",
   },
 ]
 
