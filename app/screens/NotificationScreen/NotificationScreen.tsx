@@ -1,4 +1,4 @@
-import { FC, useCallback, useEffect, useState } from "react"
+import { FC, useEffect, useState } from "react"
 import {
   ActivityIndicator,
   FlatList,
@@ -9,14 +9,15 @@ import {
   ViewStyle,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
+import { useIsFocused } from "@react-navigation/native"
 import { format, parseISO } from "date-fns"
 
 import { PressableIcon } from "@/components/Icon"
 import { Screen } from "@/components/Screen"
 import { Text } from "@/components/Text"
+import { useNotifications } from "@/context/NotificationContext"
 import type { AppNotification, NotificationType } from "@/models/notification.types"
 import type { AppStackScreenProps } from "@/navigators/navigationTypes"
-import { mockNotificationService } from "@/services/notifications/mockNotificationService"
 import { useAppTheme } from "@/theme/context"
 import type { ThemedStyle } from "@/theme/types"
 
@@ -39,37 +40,44 @@ export const NotificationScreen: FC<NotificationScreenProps> = ({ navigation }) 
     themed,
     theme: { colors },
   } = useAppTheme()
+  const { notifications, unreadCount, isLoading, error, refresh, markAllRead } = useNotifications()
+  const isFocused = useIsFocused()
 
-  const [notifications, setNotifications] = useState<AppNotification[]>([])
-  const [isLoading, setLoading] = useState(true)
   const [isRefreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const loadNotifications = useCallback(async (isRefresh = false) => {
-    if (isRefresh) {
-      setRefreshing(true)
-    } else {
-      setLoading(true)
-    }
-    setError(null)
-
-    try {
-      const result = await mockNotificationService.getNotifications()
-      setNotifications(result)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to load notifications.")
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
-  }, [])
+  const [highlightedNotificationIds, setHighlightedNotificationIds] = useState<Set<string>>(
+    () => new Set(),
+  )
 
   useEffect(() => {
-    loadNotifications()
-  }, [loadNotifications])
+    if (!isFocused) {
+      // Highlights mean "new when I opened this inbox visit", not permanently unread.
+      setHighlightedNotificationIds(new Set())
+      return
+    }
+
+    if (unreadCount === 0) return
+
+    const unreadIds = notifications
+      .filter((notification) => !notification.readAt)
+      .map((notification) => notification.id)
+
+    setHighlightedNotificationIds((current) => {
+      const next = new Set(current)
+      unreadIds.forEach((id) => next.add(id))
+      return next
+    })
+    // Once the inbox is seen, clear persisted unread state and badge; keep temporary highlights.
+    markAllRead()
+  }, [isFocused, markAllRead, notifications, unreadCount])
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await refresh()
+    setRefreshing(false)
+  }
 
   const renderNotification: ListRenderItem<AppNotification> = ({ item }) => (
-    <NotificationRow notification={item} />
+    <NotificationRow notification={item} isHighlighted={highlightedNotificationIds.has(item.id)} />
   )
 
   return (
@@ -93,11 +101,11 @@ export const NotificationScreen: FC<NotificationScreenProps> = ({ navigation }) 
         <View style={$headerSpacer} />
       </View>
 
-      {isLoading ? (
+      {isLoading && notifications.length === 0 ? (
         <View style={themed($loadingState)}>
           <ActivityIndicator color={colors.tint} />
         </View>
-      ) : error ? (
+      ) : error && notifications.length === 0 ? (
         <View style={themed($emptyState)}>
           <View style={themed($emptyIcon)}>
             <Ionicons name="alert-circle-outline" size={34} color={colors.tint} />
@@ -106,11 +114,7 @@ export const NotificationScreen: FC<NotificationScreenProps> = ({ navigation }) 
             Unable to load notifications
           </Text>
           <Text style={themed($emptyText)}>{error}</Text>
-          <TouchableOpacity
-            style={themed($retryButton)}
-            activeOpacity={0.7}
-            onPress={() => loadNotifications()}
-          >
+          <TouchableOpacity style={themed($retryButton)} activeOpacity={0.7} onPress={refresh}>
             <Text style={themed($retryText)} weight="medium">
               Try Again
             </Text>
@@ -127,7 +131,7 @@ export const NotificationScreen: FC<NotificationScreenProps> = ({ navigation }) 
           ])}
           ItemSeparatorComponent={() => <View style={themed($separator)} />}
           refreshing={isRefreshing}
-          onRefresh={() => loadNotifications(true)}
+          onRefresh={handleRefresh}
           ListEmptyComponent={<NotificationEmptyState />}
         />
       )}
@@ -137,24 +141,26 @@ export const NotificationScreen: FC<NotificationScreenProps> = ({ navigation }) 
 
 interface NotificationRowProps {
   notification: AppNotification
+  isHighlighted: boolean
 }
 
-function NotificationRow({ notification }: NotificationRowProps) {
+function NotificationRow({ notification, isHighlighted }: NotificationRowProps) {
   const {
     themed,
     theme: { colors },
   } = useAppTheme()
 
   return (
-    <View style={themed($row)}>
-      <View style={themed($rowIcon)}>
+    <View style={themed([$row, isHighlighted && $rowUnread])}>
+      <View style={themed([$rowIcon, isHighlighted && $rowIconUnread])}>
         <Ionicons name={NOTIFICATION_ICONS[notification.type]} size={20} color={colors.tint} />
       </View>
       <View style={$rowContent}>
         <View style={$rowHeader}>
-          <Text style={themed($rowTitle)} weight="semiBold">
+          <Text style={themed($rowTitle)} weight={isHighlighted ? "bold" : "semiBold"}>
             {notification.title}
           </Text>
+          {isHighlighted && <View style={themed($unreadDot)} />}
           <Text style={themed($rowDate)}>{formatNotificationDate(notification.createdAt)}</Text>
         </View>
         <Text style={themed($rowMessage)}>{notification.message}</Text>
@@ -231,6 +237,11 @@ const $row: ThemedStyle<ViewStyle> = ({ colors, spacing }) => ({
   gap: spacing.sm,
 })
 
+const $rowUnread: ThemedStyle<ViewStyle> = ({ colors }) => ({
+  backgroundColor: colors.tintSubtle,
+  borderColor: colors.tintInactive,
+})
+
 const $rowIcon: ThemedStyle<ViewStyle> = ({ colors }) => ({
   width: 36,
   height: 36,
@@ -238,6 +249,10 @@ const $rowIcon: ThemedStyle<ViewStyle> = ({ colors }) => ({
   backgroundColor: colors.tintSubtle,
   alignItems: "center",
   justifyContent: "center",
+})
+
+const $rowIconUnread: ThemedStyle<ViewStyle> = ({ colors }) => ({
+  backgroundColor: colors.surface,
 })
 
 const $rowContent: ViewStyle = {
@@ -261,6 +276,14 @@ const $rowDate: ThemedStyle<TextStyle> = ({ colors }) => ({
   color: colors.textDim,
   fontSize: 11,
   lineHeight: 16,
+})
+
+const $unreadDot: ThemedStyle<ViewStyle> = ({ colors }) => ({
+  width: 8,
+  height: 8,
+  borderRadius: 4,
+  backgroundColor: colors.tint,
+  marginTop: 4,
 })
 
 const $rowMessage: ThemedStyle<TextStyle> = ({ colors, spacing }) => ({

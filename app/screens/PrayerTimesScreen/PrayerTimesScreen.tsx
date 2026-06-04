@@ -6,6 +6,7 @@ import { addDays, format, parseISO, subDays } from "date-fns"
 
 import { Screen } from "@/components/Screen"
 import { Text } from "@/components/Text"
+import { useNotifications } from "@/context/NotificationContext"
 import { useCurrentPrayer } from "@/hooks/useCurrentPrayer"
 import { usePrayerTimes } from "@/hooks/usePrayerTimes"
 import type { AppStackParamList } from "@/navigators/navigationTypes"
@@ -92,11 +93,24 @@ function AppHeader() {
     theme: { colors },
   } = useAppTheme()
   const navigation = useNavigation<NavigationProp<AppStackParamList>>()
+  const { unreadCount } = useNotifications()
+  const badgeLabel = unreadCount > 99 ? "99+" : String(unreadCount)
 
   return (
     <View style={themed($header)}>
-      <TouchableOpacity hitSlop={8} onPress={() => navigation.navigate("Notifications")}>
+      <TouchableOpacity
+        hitSlop={8}
+        style={$notificationButton}
+        onPress={() => navigation.navigate("Notifications")}
+      >
         <Ionicons name="notifications-outline" size={22} color={colors.tint} />
+        {unreadCount > 0 && (
+          <View style={themed($notificationBadge)}>
+            <Text style={themed($notificationBadgeText)} weight="bold">
+              {badgeLabel}
+            </Text>
+          </View>
+        )}
       </TouchableOpacity>
       <Text style={themed($headerTitle)} weight="bold">
         WIC Prayer App
@@ -137,6 +151,31 @@ const $headerRight: ViewStyle = {
   alignItems: "center",
   gap: 6,
 }
+
+const $notificationButton: ViewStyle = {
+  minWidth: 28,
+  minHeight: 28,
+  justifyContent: "center",
+}
+
+const $notificationBadge: ThemedStyle<ViewStyle> = ({ colors }) => ({
+  position: "absolute",
+  top: -4,
+  right: -8,
+  minWidth: 16,
+  height: 16,
+  borderRadius: 8,
+  paddingHorizontal: 4,
+  backgroundColor: colors.error,
+  alignItems: "center",
+  justifyContent: "center",
+})
+
+const $notificationBadgeText: ThemedStyle<TextStyle> = ({ colors }) => ({
+  color: colors.text,
+  fontSize: 9,
+  lineHeight: 11,
+})
 
 const $menuButton: ThemedStyle<ViewStyle> = ({ spacing }) => ({
   marginLeft: spacing.xxs,
