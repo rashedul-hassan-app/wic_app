@@ -1,12 +1,14 @@
 import { FC, useState } from "react"
 import { ActivityIndicator, TouchableOpacity, View, ViewStyle, TextStyle } from "react-native"
-import { addDays, format, parseISO, subDays } from "date-fns"
 import { Ionicons } from "@expo/vector-icons"
+import { NavigationProp, useNavigation } from "@react-navigation/native"
+import { addDays, format, parseISO, subDays } from "date-fns"
 
 import { Screen } from "@/components/Screen"
 import { Text } from "@/components/Text"
 import { useCurrentPrayer } from "@/hooks/useCurrentPrayer"
 import { usePrayerTimes } from "@/hooks/usePrayerTimes"
+import type { AppStackParamList } from "@/navigators/navigationTypes"
 import { useAppTheme } from "@/theme/context"
 import type { ThemedStyle } from "@/theme/types"
 
@@ -21,7 +23,10 @@ function todayISO() {
 }
 
 export const PrayerTimesScreen: FC = () => {
-  const { themed, theme: { colors } } = useAppTheme()
+  const {
+    themed,
+    theme: { colors },
+  } = useAppTheme()
 
   const [selectedDate, setSelectedDate] = useState(todayISO)
   const isToday = selectedDate === todayISO()
@@ -33,11 +38,9 @@ export const PrayerTimesScreen: FC = () => {
   const { data: todayData } = usePrayerTimes(todayISO())
   const currentPrayer = useCurrentPrayer(todayData?.prayers ?? [])
 
-  const handlePrev = () =>
-    setSelectedDate(format(subDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
+  const handlePrev = () => setSelectedDate(format(subDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
 
-  const handleNext = () =>
-    setSelectedDate(format(addDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
+  const handleNext = () => setSelectedDate(format(addDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
 
   return (
     <Screen
@@ -74,9 +77,7 @@ export const PrayerTimesScreen: FC = () => {
             currentPrayerName={isToday ? (currentPrayer?.prayer.name ?? null) : null}
             countdownLabel={isToday ? currentPrayer?.countdownLabel : undefined}
           />
-          {data.jumuah.length > 0 && (
-            <JumuahTable jumuah={data.jumuah} />
-          )}
+          {data.jumuah.length > 0 && <JumuahTable jumuah={data.jumuah} />}
         </>
       ) : null}
 
@@ -86,11 +87,17 @@ export const PrayerTimesScreen: FC = () => {
 }
 
 function AppHeader() {
-  const { themed, theme: { colors } } = useAppTheme()
+  const {
+    themed,
+    theme: { colors },
+  } = useAppTheme()
+  const navigation = useNavigation<NavigationProp<AppStackParamList>>()
 
   return (
     <View style={themed($header)}>
-      <Ionicons name="notifications-outline" size={22} color={colors.tint} />
+      <TouchableOpacity hitSlop={8} onPress={() => navigation.navigate("Notifications")}>
+        <Ionicons name="notifications-outline" size={22} color={colors.tint} />
+      </TouchableOpacity>
       <Text style={themed($headerTitle)} weight="bold">
         WIC Prayer App
       </Text>

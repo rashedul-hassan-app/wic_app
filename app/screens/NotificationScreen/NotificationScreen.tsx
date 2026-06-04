@@ -12,7 +12,10 @@ import type { ThemedStyle } from "@/theme/types"
 interface NotificationScreenProps extends AppStackScreenProps<"Notifications"> {}
 
 export const NotificationScreen: FC<NotificationScreenProps> = ({ navigation }) => {
-  const { themed, theme: { colors } } = useAppTheme()
+  const {
+    themed,
+    theme: { colors },
+  } = useAppTheme()
 
   return (
     <Screen

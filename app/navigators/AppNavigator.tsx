@@ -16,7 +16,9 @@ const exitRoutes = Config.exitRoutes
 const Stack = createNativeStackNavigator<AppStackParamList>()
 
 function AppStack() {
-  const { theme: { colors } } = useAppTheme()
+  const {
+    theme: { colors },
+  } = useAppTheme()
 
   return (
     <Stack.Navigator

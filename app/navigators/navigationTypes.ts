@@ -31,5 +31,6 @@ export type MainTabScreenProps<T extends keyof MainTabParamList> = CompositeScre
   AppStackScreenProps<keyof AppStackParamList>
 >
 
-export interface NavigationProps
-  extends Partial<ComponentProps<typeof NavigationContainer<AppStackParamList>>> {}
+export interface NavigationProps extends Partial<
+  ComponentProps<typeof NavigationContainer<AppStackParamList>>
+> {}
