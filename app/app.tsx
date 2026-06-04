@@ -26,9 +26,16 @@ const config = {
   screens: {
     Main: {
       screens: {
-        Timetable: "",
-        Mosque: "mosque",
-        More: "more",
+        // 1. Map the outer Tabs navigator container matching your type definition
+        Tabs: {
+          screens: {
+            Timetable: "", // Root tab path
+            Mosque: "mosque",
+            More: "more",
+          },
+        },
+        // 2. Map the sibling Alerts screen if it should have its own deep link path
+        Alerts: "alerts",
       },
     },
     AdminLogin: "admin/login",
