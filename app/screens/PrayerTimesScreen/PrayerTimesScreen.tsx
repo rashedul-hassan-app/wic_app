@@ -1,4 +1,4 @@
-import { FC, useState } from "react"
+import { FC, useCallback, useState } from "react"
 import { ActivityIndicator, TouchableOpacity, View, ViewStyle, TextStyle } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { addDays, format, parseISO, subDays } from "date-fns"
@@ -93,9 +93,15 @@ function AppHeader({ navigation }: { navigation: MainTabScreenProps<"Timetable">
   const {
     themed,
     theme: { colors },
+    themeContext,
+    setThemeContextOverride,
   } = useAppTheme()
 
   const { count } = useAlertBadge()
+
+  const handleChangeTheme = useCallback(() => {
+    setThemeContextOverride(themeContext === "light" ? "dark" : "light")
+  }, [setThemeContextOverride, themeContext])
 
   return (
     <View style={themed($header)}>
@@ -117,8 +123,12 @@ function AppHeader({ navigation }: { navigation: MainTabScreenProps<"Timetable">
         WIC Prayer App
       </Text>
       <View style={$headerRight}>
-        <TouchableOpacity hitSlop={8}>
-          <Ionicons name="partly-sunny-outline" size={22} color={colors.textDim} />
+        <TouchableOpacity hitSlop={8} onPress={handleChangeTheme}>
+          <Ionicons
+            name={themeContext === "dark" ? "moon-outline" : "partly-sunny-outline"}
+            size={22}
+            color={colors.textDim}
+          />
         </TouchableOpacity>
         <TouchableOpacity hitSlop={8} style={themed($menuButton)}>
           <Ionicons name="menu-outline" size={24} color={colors.textDim} />
