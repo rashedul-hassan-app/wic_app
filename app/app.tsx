@@ -35,6 +35,7 @@ const config = {
             More: "more",
           },
         },
+        Alerts: "alerts",
       },
     },
     AdminLogin: "admin/login",

@@ -48,12 +48,24 @@ function hasNotificationPermission(settings: Notifications.NotificationPermissio
     )
   }
 
-  return Platform.OS === "android"
+  return false
 }
 
-/** Android 12+ batches inexact alarms ~1 min late without this system permission. */
-async function promptAndroidExactAlarmsOnce() {
+/** Android 12+ needs "Alarms & reminders" or DATE triggers are batched and may not fire. */
+export async function ensureAndroidExactAlarms() {
   if (Platform.OS !== "android" || Number(Platform.Version) < 31) return
+
+  if (__DEV__) {
+    if (!loadString(ANDROID_EXACT_ALARM_PROMPT_KEY)) {
+      console.warn(
+        "[notifications] On Android 12+, enable Alarms & reminders for com.wicapp " +
+          "(Settings → Apps → Wic Prayer App → Alarms & reminders) or OS banners may not fire.",
+      )
+      saveString(ANDROID_EXACT_ALARM_PROMPT_KEY, "1")
+    }
+    return
+  }
+
   if (loadString(ANDROID_EXACT_ALARM_PROMPT_KEY)) return
 
   const packageName = Application.applicationId
@@ -95,10 +107,15 @@ export async function initializeNotifications(): Promise<boolean> {
   })
 
   if (Platform.OS === "android") {
+    // Recreate channel so sound config updates (Android channels are sticky).
+    // Omit `sound` — Android treats the string "default" as a missing custom file.
+    await Notifications.deleteNotificationChannelAsync(ANDROID_CHANNEL_ID)
     await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
       name: "Prayer Alerts",
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
+      enableVibrate: true,
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     })
   }
 
@@ -115,9 +132,8 @@ export async function initializeNotifications(): Promise<boolean> {
     })
   }
 
-  // Opening system settings on every dev launch looks like a random "menu" popping up.
-  if (Platform.OS === "android" && hasNotificationPermission(settings) && !__DEV__) {
-    await promptAndroidExactAlarmsOnce()
+  if (Platform.OS === "android" && hasNotificationPermission(settings)) {
+    await ensureAndroidExactAlarms()
   }
 
   initialized = true

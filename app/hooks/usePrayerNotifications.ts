@@ -16,22 +16,20 @@ import {
   syncBadgeCount,
 } from "@/services/notifications/notificationService"
 import { reschedulePrayerNotifications } from "@/services/notifications/prayerNotificationScheduler"
-import { resetDevMockPrayerCache } from "@/services/prayer/mockPrayerService"
 import { useAlertStore } from "@/stores/useAlertStore"
 
 function todayISO() {
   return format(new Date(), "yyyy-MM-dd")
 }
 
-let devMockSessionBootstrapped = false
+let alertSessionBootstrapped = false
 
 export function usePrayerNotifications() {
   const bootstrapped = useRef(false)
 
-  if (__DEV__ && !bootstrapped.current && !devMockSessionBootstrapped) {
+  if (!bootstrapped.current && !alertSessionBootstrapped) {
     bootstrapped.current = true
-    devMockSessionBootstrapped = true
-    resetDevMockPrayerCache()
+    alertSessionBootstrapped = true
     resetPrayerAlertSession()
   }
 
@@ -39,14 +37,7 @@ export function usePrayerNotifications() {
   const currentPrayer = useCurrentPrayer(todayPrayerTimes?.prayers ?? [])
   const events = useAlertStore((state) => state.events)
 
-  const scheduleToken = useMemo(() => {
-    if (!todayPrayerTimes) return null
-
-    const maghrib = todayPrayerTimes.prayers.find((prayer) => prayer.name === "maghrib")
-    return __DEV__
-      ? `${todayPrayerTimes.date}:${maghrib?.begins}:${maghrib?.jamaah}`
-      : todayPrayerTimes.date
-  }, [todayPrayerTimes])
+  const scheduleToken = useMemo(() => todayPrayerTimes?.date ?? null, [todayPrayerTimes?.date])
 
   usePrayerAlertWatcher(
     currentPrayer,
@@ -63,14 +54,19 @@ export function usePrayerNotifications() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduleToken])
 
-  // Catch up immediately when returning to the app (timers are suspended in background).
+  // Catch up in-app alerts and refresh OS schedule when returning from background.
   useEffect(() => {
     if (!todayPrayerTimes?.prayers.length || !todayPrayerTimes.date) return
 
     const subscription = AppState.addEventListener("change", (nextState) => {
-      if (nextState === "active") {
-        syncDuePrayerAlerts(todayPrayerTimes.prayers, todayPrayerTimes.date)
-      }
+      if (nextState !== "active") return
+
+      syncDuePrayerAlerts(todayPrayerTimes.prayers, todayPrayerTimes.date)
+
+      void initializeNotifications().then(async (granted) => {
+        if (!granted) return
+        await reschedulePrayerNotifications(todayPrayerTimes)
+      })
     })
 
     return () => subscription.remove()

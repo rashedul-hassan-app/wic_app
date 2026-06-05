@@ -21,6 +21,8 @@ import { useAlertStore } from "@/stores/useAlertStore"
  */
 
 const JAMAAH_WARNING_MINUTES = 10
+/** Jumu'ah fires at Friday 00:00 — only watch during that first minute (no afternoon backfill). */
+const JUMUAH_REMINDER_WINDOW_SEC = 60
 
 let sessionWatch: { dayDate: string; watchedKeys: Set<string> } | null = null
 const processedKeys = new Set<string>()
@@ -100,7 +102,7 @@ export function initPrayerAlertSession(
     }
   }
 
-  if (now.getDay() === 5) {
+  if (now.getDay() === 5 && nowSec <= JUMUAH_REMINDER_WINDOW_SEC) {
     watchedKeys.add(alertInstanceKeyFromParts(jumuahReminderAlertId(todayDate), "00:00"))
   }
 

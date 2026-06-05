@@ -1,7 +1,7 @@
 {
-  "name": "PizzaApp",
-  "slug": "PizzaApp",
-  "scheme": "pizzaapp",
+  "name": "Wic Prayer App",
+  "slug": "wic-prayer-app",
+  "scheme": "wicapp",
   "version": "1.0.0",
   "orientation": "portrait",
   "userInterfaceStyle": "automatic",

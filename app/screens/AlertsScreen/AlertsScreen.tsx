@@ -1,13 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { SectionList, View, TouchableOpacity, ViewStyle, TextStyle } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from "@react-navigation/native"
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack"
+import { format, parseISO } from "date-fns"
 
 import { Screen } from "@/components/Screen"
 import { Text } from "@/components/Text"
+import { usePrayerTimes } from "@/hooks/usePrayerTimes"
 import type { MainStackParamList } from "@/navigators/navigationTypes"
-import { alertInstanceKeyFromParts } from "@/services/notifications/alertEventIds"
+import {
+  alertInstanceKey,
+  alertInstanceKeyFromParts,
+} from "@/services/notifications/alertEventIds"
+import { getUpcomingAlertEvents } from "@/services/notifications/prayerNotificationScheduler"
+import type { AlertEvent } from "@/stores/useAlertStore"
 import { useAlertStore } from "@/stores/useAlertStore"
 import { useAppTheme } from "@/theme/context"
 import { ThemedStyle } from "@/theme/types"
@@ -16,11 +23,28 @@ const HEADER_HEIGHT = 48
 
 type AlertsRoute = RouteProp<MainStackParamList, "Alerts">
 
+function todayISO() {
+  return format(new Date(), "yyyy-MM-dd")
+}
+
+function isToday(eventAt: string) {
+  return format(parseISO(eventAt), "yyyy-MM-dd") === todayISO()
+}
+
+function sortByEventAtDesc(a: AlertEvent, b: AlertEvent) {
+  return new Date(b.eventAt).getTime() - new Date(a.eventAt).getTime()
+}
+
+function sortByEventAtAsc(a: AlertEvent, b: AlertEvent) {
+  return new Date(a.eventAt).getTime() - new Date(b.eventAt).getTime()
+}
+
 export function AlertsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<MainStackParamList>>()
   const route = useRoute<AlertsRoute>()
   const highlightEventId = route.params?.highlightEventId
   const listRef = useRef<SectionList>(null)
+  const [now, setNow] = useState(() => Date.now())
 
   const {
     theme: { colors },
@@ -29,7 +53,13 @@ export function AlertsScreen() {
 
   const events = useAlertStore((s) => s.events)
   const clearAlerts = useAlertStore((s) => s.clear)
+  const { data: todayPrayerTimes } = usePrayerTimes(todayISO())
   const isFocusedRef = useRef(false)
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   const markReadIfNeeded = useCallback(() => {
     const store = useAlertStore.getState()
@@ -38,8 +68,6 @@ export function AlertsScreen() {
     }
   }, [])
 
-  // Mark read on focus AND whenever new alerts arrive while focused — covers the case
-  // where an alert (e.g. opened via notification) is added to the store just after focus.
   useFocusEffect(
     useCallback(() => {
       isFocusedRef.current = true
@@ -58,14 +86,37 @@ export function AlertsScreen() {
   const highlightKey = highlightEventId ? alertInstanceKeyFromParts(highlightEventId, "") : null
 
   const sections = useMemo(() => {
-    const sorted = [...events].sort(
-      (a, b) => new Date(b.eventAt).getTime() - new Date(a.eventAt).getTime(),
-    )
+    const storedKeys = new Set(events.map((event) => alertInstanceKey(event)))
+    const nowDate = new Date(now)
 
-    if (!sorted.length) return []
+    const upcoming =
+      todayPrayerTimes && todayPrayerTimes.date === todayISO()
+        ? getUpcomingAlertEvents(todayPrayerTimes, nowDate)
+            .filter((event) => !storedKeys.has(alertInstanceKey(event)))
+            .sort(sortByEventAtAsc)
+        : []
 
-    return [{ title: "", data: sorted }]
-  }, [events])
+    const newAlerts = events
+      .filter((event) => !event.read && new Date(event.eventAt).getTime() <= now)
+      .sort(sortByEventAtDesc)
+
+    const recent = events
+      .filter((event) => event.read && isToday(event.eventAt))
+      .sort(sortByEventAtDesc)
+
+    const older = events
+      .filter((event) => event.read && !isToday(event.eventAt))
+      .sort(sortByEventAtDesc)
+
+    const result: { title: string; data: AlertEvent[] }[] = []
+
+    if (newAlerts.length) result.push({ title: "New", data: newAlerts })
+    if (upcoming.length) result.push({ title: "Upcoming", data: upcoming })
+    if (recent.length) result.push({ title: "Recent", data: recent })
+    if (older.length) result.push({ title: "Older", data: older })
+
+    return result
+  }, [events, now, todayPrayerTimes])
 
   useEffect(() => {
     if (!highlightEventId) return
@@ -138,17 +189,16 @@ export function AlertsScreen() {
             </Text>
           </View>
         }
-        renderSectionHeader={({ section: { title } }) =>
-          title ? (
-            <View style={themed($sectionHeader)}>
-              <Text weight="bold">{title}</Text>
-            </View>
-          ) : null
-        }
-        renderItem={({ item }) => {
+        renderSectionHeader={({ section: { title } }) => (
+          <View style={themed($sectionHeader)}>
+            <Text weight="bold">{title}</Text>
+          </View>
+        )}
+        renderItem={({ item, section }) => {
           const isHighlighted =
             item.id === highlightEventId ||
             (highlightKey != null && alertInstanceKeyFromParts(item.id, item.time) === highlightKey)
+          const isUpcoming = section.title === "Upcoming"
 
           return (
             <View
@@ -156,10 +206,15 @@ export function AlertsScreen() {
                 themed($card),
                 isHighlighted && themed($highlightedCard),
                 isHighlighted && { borderColor: colors.tint, backgroundColor: colors.elevated },
+                isUpcoming && themed($upcomingCard),
               ]}
             >
               <View style={themed($iconWrapper)}>
-                <Ionicons name="alarm-outline" size={30} color={colors.tint} />
+                <Ionicons
+                  name={isUpcoming ? "time-outline" : "alarm-outline"}
+                  size={30}
+                  color={colors.tint}
+                />
               </View>
               <View style={themed($bar)} />
               <View style={themed($itemContent)}>
@@ -204,6 +259,10 @@ const $card: ThemedStyle<ViewStyle> = ({ spacing, colors }) => ({
   borderColor: colors.separator,
 })
 
+const $upcomingCard: ThemedStyle<ViewStyle> = () => ({
+  opacity: 0.85,
+})
+
 const $highlightedCard: ThemedStyle<ViewStyle> = () => ({
   borderWidth: 2,
 })
@@ -236,7 +295,8 @@ const $iconWrapper: ThemedStyle<ViewStyle> = () => ({
 
 const $sectionHeader: ThemedStyle<ViewStyle> = ({ spacing }) => ({
   paddingHorizontal: spacing.md,
-  paddingVertical: spacing.sm,
+  paddingTop: spacing.md,
+  paddingBottom: spacing.xs,
 })
 
 const $clearButton: ThemedStyle<ViewStyle> = () => ({

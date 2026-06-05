@@ -7,4 +7,6 @@
  */
 export default {
   API_URL: "https://api.rss2json.com/v1/",
+  // Flip to true for Maghrib +1 min / jamaah +11 min test timetable.
+  USE_DEV_PRAYER_MOCK: false,
 }

@@ -1,5 +1,6 @@
 import { differenceInCalendarDays, format, parseISO } from "date-fns"
 
+import Config from "@/config"
 import type { DayPrayerTimes, PrayerTime } from "@/models/prayer.types"
 
 import type { IPrayerService } from "./IPrayerService"
@@ -62,7 +63,7 @@ class MockPrayerService implements IPrayerService {
 
   private build(date: string): DayPrayerTimes {
     const today = format(new Date(), "yyyy-MM-dd")
-    if (__DEV__ && date === today) {
+    if (__DEV__ && Config.USE_DEV_PRAYER_MOCK && date === today) {
       if (cachedDevDate === today && cachedDevDayPrayerTimes) {
         return cachedDevDayPrayerTimes
       }
