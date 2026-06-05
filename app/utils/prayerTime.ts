@@ -1,5 +1,7 @@
 import { format, parseISO } from "date-fns"
 
+import type { PrayerTime } from "@/models/prayer.types"
+
 /**
  * Converts a 24h time string to a compact 12h display string.
  * "03:47" → "3:47",  "17:16" → "5:16",  "13:30" → "1:30"
@@ -49,4 +51,73 @@ export function getCurrentTimeHHMM(): string {
   const h = String(now.getHours()).padStart(2, "0")
   const m = String(now.getMinutes()).padStart(2, "0")
   return `${h}:${m}`
+}
+
+export function prayerTimeToMinutes(time24h: string): number {
+  const [h, m] = time24h.split(":").map(Number)
+  return h * 60 + m
+}
+
+/** Minutes since midnight for begins, in real day order (handles post-midnight slots). */
+export function prayerBeginsMinutes(prayers: PrayerTime[], index: number): number {
+  let min = prayerTimeToMinutes(prayers[index].begins)
+  if (index === 0) return min
+
+  const prev = prayerBeginsMinutes(prayers, index - 1)
+  if (min < prev) min += 1440
+  return min
+}
+
+export function prayerJamaahMinutes(prayers: PrayerTime[], index: number): number | null {
+  const jamaah = prayers[index].jamaah
+  if (!jamaah) return null
+
+  let min = prayerTimeToMinutes(jamaah)
+  const beginsMin = prayerBeginsMinutes(prayers, index)
+  if (min < beginsMin) min += 1440
+  return min
+}
+
+/** ISO timestamp for a timetable HH:mm on today's row (handles post-midnight slots). */
+export function eventAtForTimetableTime(time24h: string, now: Date): string {
+  const [hour, minute] = time24h.split(":").map(Number)
+  const slotMin = hour * 60 + minute
+  const nowClock = now.getHours() * 60 + now.getMinutes()
+
+  const eventAt = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    hour,
+    minute,
+    0,
+    0,
+  )
+
+  // e.g. 00:30 jamaah on today's row while it's still the evening
+  if (nowClock > 12 * 60 && slotMin < nowClock) {
+    eventAt.setDate(eventAt.getDate() + 1)
+  }
+
+  return eventAt.toISOString()
+}
+
+export function nowOrderedMinutes(
+  prayers: PrayerTime[],
+  now: Date,
+  includeSeconds = false,
+): number {
+  const clockMin =
+    now.getHours() * 60 + now.getMinutes() + (includeSeconds ? now.getSeconds() / 60 : 0)
+
+  if (!prayers.length) return clockMin
+
+  const beginsMins = prayers.map((_, i) => prayerBeginsMinutes(prayers, i))
+  const hasPostMidnight = beginsMins.some((min) => min >= 1440)
+
+  if (hasPostMidnight && now.getHours() * 60 + now.getMinutes() < prayerTimeToMinutes(prayers[0].begins)) {
+    return clockMin + 1440
+  }
+
+  return clockMin
 }

@@ -27,36 +27,16 @@ function offsetFromNow(now: Date, deltaMinutes: number): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
 }
 
-/** Dev-only: Maghrib in 1 min, Maghrib jamaah in 11 min. */
+/** Dev-only: Maghrib in 1 min, jamaah in 11 min (10-min warning at +1 min). */
 function buildDevTestPrayerTimes(now: Date): PrayerTime[] {
   return [
-    {
-      name: "fajr",
-      label: "Fajr",
-      begins: offsetFromNow(now, -600),
-      jamaah: offsetFromNow(now, -572),
-    },
+    { name: "fajr", label: "Fajr", begins: offsetFromNow(now, -600), jamaah: offsetFromNow(now, -572) },
     { name: "sunrise", label: "Sunrise 🌅", begins: offsetFromNow(now, -580), jamaah: null },
     { name: "duha", label: "Duha ☀️", begins: offsetFromNow(now, -565), jamaah: null },
-    {
-      name: "dhuhr",
-      label: "Dhuhr",
-      begins: offsetFromNow(now, -240),
-      jamaah: offsetFromNow(now, -209),
-    },
+    { name: "dhuhr", label: "Dhuhr", begins: offsetFromNow(now, -240), jamaah: offsetFromNow(now, -209) },
     { name: "asr", label: "Asr", begins: offsetFromNow(now, -90), jamaah: offsetFromNow(now, -50) },
-    {
-      name: "maghrib",
-      label: "Maghrib",
-      begins: offsetFromNow(now, 1),
-      jamaah: offsetFromNow(now, 11),
-    },
-    {
-      name: "isha",
-      label: "Isha",
-      begins: offsetFromNow(now, 90),
-      jamaah: offsetFromNow(now, 109),
-    },
+    { name: "maghrib", label: "Maghrib", begins: offsetFromNow(now, 1), jamaah: offsetFromNow(now, 11) },
+    { name: "isha", label: "Isha", begins: offsetFromNow(now, 90), jamaah: offsetFromNow(now, 109) },
   ]
 }
 
@@ -107,7 +87,7 @@ class MockPrayerService implements IPrayerService {
             jamaah: offsetFromNow(now, 85),
           },
         ],
-        announcement: `TEST · Maghrib ${maghribBegins} (1 min) · Jamaah ${maghribJamaah} (11 min)`,
+        announcement: `TEST · Maghrib ${maghribBegins} (1 min) · Jamaah ${maghribJamaah} (11 min, warning 10 min before)`,
       }
 
       return cachedDevDayPrayerTimes

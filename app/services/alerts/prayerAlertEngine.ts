@@ -10,6 +10,12 @@ import {
 } from "@/services/notifications/alertEventIds"
 import type { AlertEvent } from "@/stores/useAlertStore"
 import { useAlertStore } from "@/stores/useAlertStore"
+import {
+  eventAtForTimetableTime,
+  nowOrderedMinutes,
+  prayerBeginsMinutes,
+  prayerJamaahMinutes,
+} from "@/utils/prayerTime"
 
 /**
  * Time-driven alert engine. Mirrors how the timetable derives its state purely from
@@ -27,27 +33,8 @@ const JUMUAH_REMINDER_WINDOW_SEC = 60
 let sessionWatch: { dayDate: string; watchedKeys: Set<string> } | null = null
 const processedKeys = new Set<string>()
 
-function toSeconds(time24h: string): number {
-  const [h, m] = time24h.split(":").map(Number)
-  return h * 3600 + m * 60
-}
-
 function nowSeconds(date: Date): number {
   return date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds()
-}
-
-function toEventAt(time24h: string, date: Date): string {
-  const [hour, minute] = time24h.split(":").map(Number)
-  const eventAt = new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    hour,
-    minute,
-    0,
-    0,
-  )
-  return eventAt.toISOString()
 }
 
 export function hasAlert(eventId: string, time = ""): boolean {
@@ -88,9 +75,12 @@ export function initPrayerAlertSession(
 
   const watchedKeys = new Set<string>()
   const nowSec = nowSeconds(now)
+  const nowMin = nowOrderedMinutes(prayers, now)
 
-  for (const prayer of prayers) {
-    if (toSeconds(prayer.begins) > nowSec) {
+  for (let i = 0; i < prayers.length; i++) {
+    const prayer = prayers[i]
+
+    if (prayerBeginsMinutes(prayers, i) > nowMin) {
       watchedKeys.add(
         alertInstanceKeyFromParts(
           prayerStartAlertId(dayDate, prayer.name, prayer.begins),
@@ -99,11 +89,12 @@ export function initPrayerAlertSession(
       )
     }
 
-    if (prayer.jamaah && toSeconds(prayer.jamaah) - JAMAAH_WARNING_MINUTES * 60 > nowSec) {
+    const jamaahMin = prayerJamaahMinutes(prayers, i)
+    if (jamaahMin !== null && jamaahMin > nowMin) {
       watchedKeys.add(
         alertInstanceKeyFromParts(
-          jamaahWarningAlertId(dayDate, prayer.name, prayer.jamaah),
-          prayer.jamaah,
+          jamaahWarningAlertId(dayDate, prayer.name, prayer.jamaah!),
+          prayer.jamaah!,
         ),
       )
     }
@@ -133,7 +124,7 @@ export function syncDuePrayerAlerts(
   if (dayDate !== todayDate) return
 
   const store = useAlertStore.getState()
-  const nowSec = nowSeconds(now)
+  const nowMin = nowOrderedMinutes(prayers, now, true)
 
   if (store.jumuahLastShown && store.jumuahLastShown !== todayDate) {
     store.setJumuahLastShown(null)
@@ -157,28 +148,31 @@ export function syncDuePrayerAlerts(
     }
   }
 
-  for (const prayer of prayers) {
+  for (let i = 0; i < prayers.length; i++) {
+    const prayer = prayers[i]
     const startId = prayerStartAlertId(dayDate, prayer.name, prayer.begins)
+    const beginsMin = prayerBeginsMinutes(prayers, i)
 
-    if (isWatched(startId, prayer.begins) && toSeconds(prayer.begins) <= nowSec) {
+    if (isWatched(startId, prayer.begins) && nowMin >= beginsMin) {
       addAlert({
         id: startId,
         title: `${prayer.label} has started`,
         time: prayer.begins,
-        eventAt: toEventAt(prayer.begins, now),
+        eventAt: eventAtForTimetableTime(prayer.begins, now),
       })
     }
 
-    if (prayer.jamaah) {
-      const warningSec = toSeconds(prayer.jamaah) - JAMAAH_WARNING_MINUTES * 60
+    const jamaahMin = prayerJamaahMinutes(prayers, i)
+    if (jamaahMin !== null && prayer.jamaah) {
+      const warningMin = jamaahMin - JAMAAH_WARNING_MINUTES
       const jamaahId = jamaahWarningAlertId(dayDate, prayer.name, prayer.jamaah)
 
-      if (isWatched(jamaahId, prayer.jamaah) && nowSec >= warningSec) {
+      if (isWatched(jamaahId, prayer.jamaah) && nowMin >= warningMin) {
         addAlert({
           id: jamaahId,
           title: `${prayer.label} jamaah in ${JAMAAH_WARNING_MINUTES} mins`,
           time: prayer.jamaah,
-          eventAt: toEventAt(prayer.jamaah, now),
+          eventAt: eventAtForTimetableTime(prayer.jamaah, now),
         })
       }
     }
