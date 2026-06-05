@@ -35,8 +35,6 @@ const config = {
             More: "more",
           },
         },
-        // 2. Map the sibling Alerts screen if it should have its own deep link path
-        Alerts: "alerts",
       },
     },
     AdminLogin: "admin/login",

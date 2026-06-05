@@ -3,7 +3,7 @@ import * as Application from "expo-application"
 import * as Notifications from "expo-notifications"
 import { CommonActions } from "@react-navigation/native"
 
-import { navigationRef } from "@/navigators/navigationUtilities"
+import { ensureTimetableOnLaunch, navigationRef } from "@/navigators/navigationUtilities"
 import { normalizeAlertEvent } from "@/services/notifications/alertEventIds"
 import type { AlertEvent } from "@/stores/useAlertStore"
 import { useAlertStore } from "@/stores/useAlertStore"
@@ -14,13 +14,19 @@ const ANDROID_EXACT_ALARM_PROMPT_KEY = "ANDROID_EXACT_ALARM_PROMPTED"
 
 const NOTIFICATION_LISTENERS_KEY = "__wicNotificationListeners"
 
+// Android replays the last notification response even on icon launches. We only navigate
+// to Alerts when the user genuinely tapped a notification (fresh response) or the app
+// was already running in the background.
+const LAUNCH_NOTIFICATION_MAX_AGE_MS = 15_000
+
 type NotificationListenerRegistry = {
   cleanup: (() => void) | null
 }
 
 let initialized = false
-let pendingHighlightEventId: string | null = null
 let lastHandledResponseKey: string | null = null
+let hasBeenBackground = false
+let launchNavigationHandled = false
 
 function isNativePlatform() {
   return Platform.OS === "ios" || Platform.OS === "android"
@@ -109,7 +115,8 @@ export async function initializeNotifications(): Promise<boolean> {
     })
   }
 
-  if (Platform.OS === "android" && hasNotificationPermission(settings)) {
+  // Opening system settings on every dev launch looks like a random "menu" popping up.
+  if (Platform.OS === "android" && hasNotificationPermission(settings) && !__DEV__) {
     await promptAndroidExactAlarmsOnce()
   }
 
@@ -138,8 +145,6 @@ export function eventFromNotificationData(data: unknown): AlertEvent | null {
 }
 
 function openAlertsForEvent(eventId: string) {
-  pendingHighlightEventId = eventId
-
   const open = () => {
     if (!navigationRef.isReady()) {
       setTimeout(open, 50)
@@ -155,16 +160,9 @@ function openAlertsForEvent(eventId: string) {
         },
       }),
     )
-
-    pendingHighlightEventId = null
   }
 
   open()
-}
-
-export function flushPendingNotificationNavigation() {
-  if (!pendingHighlightEventId) return
-  openAlertsForEvent(pendingHighlightEventId)
 }
 
 function getResponseKey(response: Notifications.NotificationResponse) {
@@ -172,6 +170,21 @@ function getResponseKey(response: Notifications.NotificationResponse) {
   const action = response.actionIdentifier ?? "default"
   const date = response.notification.date ?? 0
   return `${identifier}:${action}:${date}`
+}
+
+function notificationAgeMs(response: Notifications.NotificationResponse) {
+  const raw = response.notification.date ?? 0
+  const tappedAt = raw > 1_000_000_000_000 ? raw : raw * 1000
+  return Date.now() - tappedAt
+}
+
+function isFreshNotificationLaunch(response: Notifications.NotificationResponse) {
+  const ageMs = notificationAgeMs(response)
+  return ageMs >= 0 && ageMs < LAUNCH_NOTIFICATION_MAX_AGE_MS
+}
+
+function canNavigateToAlertsFromNotification() {
+  return hasBeenBackground
 }
 
 /** Tapping an OS notification only navigates — the in-app list is time-driven. */
@@ -183,8 +196,38 @@ function handleNotificationResponse(response: Notifications.NotificationResponse
   const event = eventFromNotificationData(response.notification.request.content.data)
   if (!event) return null
 
+  if (!canNavigateToAlertsFromNotification()) return event
+
   openAlertsForEvent(event.id)
   return event
+}
+
+/** Decide the initial screen once navigation is ready. */
+export async function handleNavigationContainerReady() {
+  if (launchNavigationHandled) return
+  launchNavigationHandled = true
+
+  if (!isNativePlatform()) {
+    ensureTimetableOnLaunch()
+    return
+  }
+
+  const response = await Notifications.getLastNotificationResponseAsync()
+  const event = response
+    ? eventFromNotificationData(response.notification.request.content.data)
+    : null
+
+  if (response && event && isFreshNotificationLaunch(response)) {
+    lastHandledResponseKey = getResponseKey(response)
+    openAlertsForEvent(event.id)
+    return
+  }
+
+  if (response) {
+    lastHandledResponseKey = getResponseKey(response)
+  }
+
+  ensureTimetableOnLaunch()
 }
 
 export async function syncBadgeCount() {
@@ -218,8 +261,15 @@ export function setupNotificationListeners() {
     handleNotificationResponse(response)
   })
 
+  const appStateSubscription = AppState.addEventListener("change", (nextState) => {
+    if (nextState === "background") {
+      hasBeenBackground = true
+    }
+  })
+
   registry.cleanup = () => {
     responseSubscription.remove()
+    appStateSubscription.remove()
     registry.cleanup = null
   }
 

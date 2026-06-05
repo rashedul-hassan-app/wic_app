@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { BackHandler, Linking, Platform } from "react-native"
 import {
+  CommonActions,
   NavigationState,
   PartialState,
   createNavigationContainerRef,
@@ -37,16 +38,23 @@ function getMainStackState(state: NavigationState | PartialState<NavigationState
   return mainRoute?.state as NavigationState | PartialState<NavigationState> | undefined
 }
 
+/**
+ * Always remove the Alerts route from the Main stack so launches (icon or restored
+ * state) land on the Timetable. Works regardless of `index` being defined, which the
+ * previous index-based check missed for older/partial persisted state.
+ */
 function sanitizeNavigationStateForPersistence(
   state: NavigationState | PartialState<NavigationState>,
 ): NavigationState | PartialState<NavigationState> {
   const mainState = getMainStackState(state)
   if (!mainState?.routes?.length) return state
 
-  const activeRoute = mainState.routes[mainState.index ?? 0]
-  if (activeRoute?.name !== "Alerts") return state
+  const hasAlerts = mainState.routes.some((route) => route.name === "Alerts")
+  if (!hasAlerts) return state
 
-  const tabsRoute = mainState.routes.find((route) => route.name === "Tabs") ?? { name: "Tabs" }
+  const remaining = mainState.routes.filter((route) => route.name !== "Alerts")
+  const routes = remaining.length ? remaining : [{ name: "Tabs" }]
+  const tabsIndex = routes.findIndex((route) => route.name === "Tabs")
 
   const nextState = {
     ...state,
@@ -56,8 +64,8 @@ function sanitizeNavigationStateForPersistence(
             ...route,
             state: {
               ...mainState,
-              routes: [tabsRoute],
-              index: 0,
+              routes,
+              index: tabsIndex >= 0 ? tabsIndex : routes.length - 1,
             },
           }
         : route,
@@ -65,6 +73,14 @@ function sanitizeNavigationStateForPersistence(
   }
 
   return nextState as NavigationState | PartialState<NavigationState>
+}
+
+function resolvesToAlerts(state: NavigationState | PartialState<NavigationState>): boolean {
+  try {
+    return getActiveRouteName(state as NavigationState) === "Alerts"
+  } catch {
+    return false
+  }
 }
 
 export function getActiveRouteName(state: NavigationState | PartialState<NavigationState>): string {
@@ -189,7 +205,18 @@ export function useNavigationPersistence(storage: Storage, persistenceKey: strin
         const state = (await storage.load(persistenceKey)) as NavigationProps["initialState"] | null
         if (state) {
           // Strip any saved Alerts route so icon launches always reopen Timetable.
-          setInitialNavigationState(sanitizeNavigationStateForPersistence(state))
+          const cleaned = sanitizeNavigationStateForPersistence(state)
+
+          // If old/corrupt state still resolves to Alerts, discard it → fresh Timetable.
+          const nextState = resolvesToAlerts(cleaned) ? undefined : cleaned
+          setInitialNavigationState(nextState)
+
+          // Heal storage so the next icon launch does not restore Alerts again.
+          if (nextState) {
+            storage.save(persistenceKey, nextState)
+          } else {
+            storage.remove(persistenceKey)
+          }
         }
       }
     } finally {
@@ -243,4 +270,30 @@ export function resetRoot(
   if (navigationRef.isReady()) {
     navigationRef.resetRoot(state)
   }
+}
+
+/** Icon/cold launches should land on Timetable — never Alerts. */
+export function ensureTimetableOnLaunch() {
+  if (!navigationRef.isReady()) return
+
+  try {
+    if (getActiveRouteName(navigationRef.getRootState()) !== "Alerts") return
+  } catch {
+    return
+  }
+
+  navigationRef.dispatch(
+    CommonActions.reset({
+      index: 0,
+      routes: [
+        {
+          name: "Main",
+          state: {
+            index: 0,
+            routes: [{ name: "Tabs" }],
+          },
+        },
+      ],
+    }),
+  )
 }

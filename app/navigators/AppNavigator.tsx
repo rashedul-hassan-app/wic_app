@@ -2,14 +2,13 @@ import { NavigationContainer } from "@react-navigation/native"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
 
 import Config from "@/config"
-import { ErrorBoundary } from "@/screens/ErrorScreen/ErrorBoundary"
 import { AdminLoginScreen } from "@/screens/AdminLoginScreen/AdminLoginScreen"
+import { ErrorBoundary } from "@/screens/ErrorScreen/ErrorBoundary"
+import { handleNavigationContainerReady } from "@/services/notifications/notificationService"
 import { useAppTheme } from "@/theme/context"
 
 import { MainStackNavigator } from "./MainStackNavigator"
 import type { AppStackParamList, NavigationProps } from "./navigationTypes"
-import { flushPendingNotificationNavigation } from "@/services/notifications/notificationService"
-
 import { navigationRef, useBackButtonHandler } from "./navigationUtilities"
 
 const exitRoutes = Config.exitRoutes
@@ -17,7 +16,9 @@ const exitRoutes = Config.exitRoutes
 const Stack = createNativeStackNavigator<AppStackParamList>()
 
 function AppStack() {
-  const { theme: { colors } } = useAppTheme()
+  const {
+    theme: { colors },
+  } = useAppTheme()
 
   return (
     <Stack.Navigator
@@ -47,7 +48,9 @@ export function AppNavigator(props: NavigationProps) {
     <NavigationContainer
       ref={navigationRef}
       theme={navigationTheme}
-      onReady={flushPendingNotificationNavigation}
+      onReady={() => {
+        void handleNavigationContainerReady()
+      }}
       {...props}
     >
       <ErrorBoundary catchErrors={Config.catchErrors}>
