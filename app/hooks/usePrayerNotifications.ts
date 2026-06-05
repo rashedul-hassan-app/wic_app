@@ -16,6 +16,10 @@ import {
   syncBadgeCount,
 } from "@/services/notifications/notificationService"
 import { reschedulePrayerNotifications } from "@/services/notifications/prayerNotificationScheduler"
+import {
+  DEV_PRAYER_MOCK_ENABLED,
+  resetDevMockPrayerCache,
+} from "@/services/prayer/mockPrayerService"
 import { useAlertStore } from "@/stores/useAlertStore"
 
 function todayISO() {
@@ -23,6 +27,7 @@ function todayISO() {
 }
 
 let alertSessionBootstrapped = false
+let devMockSessionBootstrapped = false
 
 export function usePrayerNotifications() {
   const bootstrapped = useRef(false)
@@ -33,11 +38,23 @@ export function usePrayerNotifications() {
     resetPrayerAlertSession()
   }
 
+  if (DEV_PRAYER_MOCK_ENABLED && !devMockSessionBootstrapped) {
+    devMockSessionBootstrapped = true
+    resetDevMockPrayerCache()
+  }
+
   const { data: todayPrayerTimes } = usePrayerTimes(todayISO())
   const currentPrayer = useCurrentPrayer(todayPrayerTimes?.prayers ?? [])
   const events = useAlertStore((state) => state.events)
 
-  const scheduleToken = useMemo(() => todayPrayerTimes?.date ?? null, [todayPrayerTimes?.date])
+  const scheduleToken = useMemo(() => {
+    if (!todayPrayerTimes) return null
+
+    const maghrib = todayPrayerTimes.prayers.find((prayer) => prayer.name === "maghrib")
+    return DEV_PRAYER_MOCK_ENABLED
+      ? `${todayPrayerTimes.date}:${maghrib?.begins}:${maghrib?.jamaah}`
+      : todayPrayerTimes.date
+  }, [todayPrayerTimes])
 
   usePrayerAlertWatcher(
     currentPrayer,

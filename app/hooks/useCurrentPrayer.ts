@@ -25,6 +25,28 @@ function toMinutes(time24h: string): number {
   return h * 60 + m
 }
 
+/** Minutes since midnight for a prayer's begins time, in real day order.
+ *  If a later slot wraps past midnight (e.g. 00:31 after 23:01), add 24h so comparisons stay correct. */
+function prayerBeginsMinutes(prayers: PrayerTime[], index: number): number {
+  let min = toMinutes(prayers[index].begins)
+  if (index === 0) return min
+
+  const prev = prayerBeginsMinutes(prayers, index - 1)
+  if (min < prev) min += 1440
+  return min
+}
+
+/** Same as prayerBeginsMinutes, but for jamaah — keeps congregation times in order after midnight. */
+function prayerJamaahMinutes(prayers: PrayerTime[], index: number): number | null {
+  const jamaah = prayers[index].jamaah
+  if (!jamaah) return null
+
+  let min = toMinutes(jamaah)
+  const beginsMin = prayerBeginsMinutes(prayers, index)
+  if (min < beginsMin) min += 1440
+  return min
+}
+
 function formatCountdown(totalMinutes: number): string {
   if (totalMinutes <= 0) return "0m"
   const h = Math.floor(totalMinutes / 60)
@@ -36,9 +58,11 @@ function formatCountdown(totalMinutes: number): string {
 
 function findNextJamaah(prayers: PrayerTime[], nowMin: number): CurrentPrayerInfo["nextJamaah"] {
   // Search same day first
-  for (const prayer of prayers) {
-    if (!prayer.jamaah) continue
-    const jamaahMin = toMinutes(prayer.jamaah)
+  for (let i = 0; i < prayers.length; i++) {
+    const prayer = prayers[i]
+    const jamaahMin = prayerJamaahMinutes(prayers, i)
+    if (jamaahMin === null) continue
+
     const minutesUntil = jamaahMin - nowMin
     if (minutesUntil > 0) {
       return {
@@ -67,18 +91,19 @@ function compute(prayers: PrayerTime[], now: Date): CurrentPrayerInfo | null {
   if (!prayers.length) return null
 
   const nowMin = now.getHours() * 60 + now.getMinutes()
+  const beginsMins = prayers.map((_, i) => prayerBeginsMinutes(prayers, i))
 
   // Find the last prayer whose begins time is ≤ now
   let idx = -1
   for (let i = 0; i < prayers.length; i++) {
-    if (toMinutes(prayers[i].begins) <= nowMin) idx = i
+    if (beginsMins[i] <= nowMin) idx = i
   }
 
   const nextJamaah = findNextJamaah(prayers, nowMin)
 
   if (idx === -1) {
     // Before Fajr — we're in yesterday's Isha window
-    const fajrMin = toMinutes(prayers[0].begins)
+    const fajrMin = beginsMins[0]
     const minutesUntilFajr = fajrMin - nowMin
 
     return {
@@ -97,8 +122,8 @@ function compute(prayers: PrayerTime[], now: Date): CurrentPrayerInfo | null {
   const nextIdx = idx + 1
   const minutesUntilNext =
     nextIdx < prayers.length
-      ? toMinutes(prayers[nextIdx].begins) - nowMin
-      : 1440 - nowMin + toMinutes(prayers[0].begins) // wrap to tomorrow's Fajr
+      ? beginsMins[nextIdx] - nowMin
+      : 1440 - nowMin + beginsMins[0] // wrap to tomorrow's Fajr
 
   const nextPrayer = nextIdx < prayers.length ? prayers[nextIdx] : prayers[0]
 

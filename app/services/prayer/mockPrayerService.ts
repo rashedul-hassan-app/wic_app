@@ -1,9 +1,11 @@
 import { differenceInCalendarDays, format, parseISO } from "date-fns"
 
-import Config from "@/config"
 import type { DayPrayerTimes, PrayerTime } from "@/models/prayer.types"
 
 import type { IPrayerService } from "./IPrayerService"
+
+/** Flip to true for Maghrib +1 min test timetable; false for real WIC times. */
+export const DEV_PRAYER_MOCK_ENABLED = false
 
 // Authoritative base times for 2026-05-27 (WIC, London)
 const BASE_DATE = "2026-05-27"
@@ -28,13 +30,33 @@ function offsetFromNow(now: Date, deltaMinutes: number): string {
 /** Dev-only: Maghrib in 1 min, Maghrib jamaah in 11 min. */
 function buildDevTestPrayerTimes(now: Date): PrayerTime[] {
   return [
-    { name: "fajr", label: "Fajr", begins: offsetFromNow(now, -600), jamaah: offsetFromNow(now, -572) },
+    {
+      name: "fajr",
+      label: "Fajr",
+      begins: offsetFromNow(now, -600),
+      jamaah: offsetFromNow(now, -572),
+    },
     { name: "sunrise", label: "Sunrise 🌅", begins: offsetFromNow(now, -580), jamaah: null },
     { name: "duha", label: "Duha ☀️", begins: offsetFromNow(now, -565), jamaah: null },
-    { name: "dhuhr", label: "Dhuhr", begins: offsetFromNow(now, -240), jamaah: offsetFromNow(now, -209) },
+    {
+      name: "dhuhr",
+      label: "Dhuhr",
+      begins: offsetFromNow(now, -240),
+      jamaah: offsetFromNow(now, -209),
+    },
     { name: "asr", label: "Asr", begins: offsetFromNow(now, -90), jamaah: offsetFromNow(now, -50) },
-    { name: "maghrib", label: "Maghrib", begins: offsetFromNow(now, 1), jamaah: offsetFromNow(now, 11) },
-    { name: "isha", label: "Isha", begins: offsetFromNow(now, 90), jamaah: offsetFromNow(now, 109) },
+    {
+      name: "maghrib",
+      label: "Maghrib",
+      begins: offsetFromNow(now, 1),
+      jamaah: offsetFromNow(now, 11),
+    },
+    {
+      name: "isha",
+      label: "Isha",
+      begins: offsetFromNow(now, 90),
+      jamaah: offsetFromNow(now, 109),
+    },
   ]
 }
 
@@ -49,7 +71,7 @@ function shiftTime(time24h: string, deltaMinutes: number): string {
 let cachedDevDate: string | null = null
 let cachedDevDayPrayerTimes: DayPrayerTimes | null = null
 
-/** Fresh mock times each app launch so dev alerts can fire again at the new slot. */
+/** Clears cached test times — only call on app launch, not when returning to Timetable. */
 export function resetDevMockPrayerCache() {
   cachedDevDate = null
   cachedDevDayPrayerTimes = null
@@ -63,7 +85,8 @@ class MockPrayerService implements IPrayerService {
 
   private build(date: string): DayPrayerTimes {
     const today = format(new Date(), "yyyy-MM-dd")
-    if (__DEV__ && Config.USE_DEV_PRAYER_MOCK && date === today) {
+
+    if (DEV_PRAYER_MOCK_ENABLED && date === today) {
       if (cachedDevDate === today && cachedDevDayPrayerTimes) {
         return cachedDevDayPrayerTimes
       }
