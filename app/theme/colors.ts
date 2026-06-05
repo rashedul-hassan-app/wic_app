@@ -1,44 +1,63 @@
 const palette = {
-  navy950: "#060D18",
-  navy900: "#0C1A2E",
-  navy800: "#132035",
-  navy700: "#1A2B42",
-  navy600: "#1E3050",
-  navy500: "#2A4060",
-  navy400: "#3A5575",
+  // Warm paper background system (not pure white)
+  paper50: "#FBF7F2",
+  paper100: "#F6F0E8",
+  paper200: "#EDE4D6",
+  paper300: "#E3D6C4",
 
+  // Soft ink / navy-tinted text (keeps identity from dark mode)
+  ink900: "#1C2430",
+  ink800: "#2A3646",
+  ink700: "#3A4A5C",
+  ink600: "#516277",
+  ink500: "#6B7F95",
+
+  // Your gold stays core identity
   gold500: "#C9963A",
   gold400: "#D8A84E",
   gold300: "#E8B55A",
-  gold100: "rgba(201, 150, 58, 0.15)",
+  gold100: "rgba(201, 150, 58, 0.12)",
 
-  slate100: "#FFFFFF",
-  slate300: "#C8D5E8",
-  slate400: "#8A9BB5",
-  slate500: "#5A6B80",
+  // Soft slate accents (less harsh than gray)
+  slate200: "#D8E0EA",
+  slate300: "#B9C6D6",
+  slate400: "#8FA3B8",
 
-  angry100: "#F2D6CD",
+  // Status
+  angry100: "#F7E3DC",
   angry500: "#C03403",
 
-  overlay20: "rgba(0, 0, 0, 0.2)",
-  overlay50: "rgba(0, 0, 0, 0.5)",
+  // Overlays (warm-tinted, not black)
+  overlay10: "rgba(28, 36, 48, 0.06)",
+  overlay20: "rgba(28, 36, 48, 0.12)",
+  overlay50: "rgba(28, 36, 48, 0.22)",
 } as const
 
 export const colors = {
   palette,
-  transparent: "rgba(0, 0, 0, 0)",
-  text: palette.slate100,
-  textDim: palette.slate400,
-  textSubtle: palette.slate500,
-  background: palette.navy900,
-  surface: palette.navy800,
-  elevated: palette.navy700,
-  border: palette.navy600,
+
+  transparent: "rgba(0,0,0,0)",
+
+  // Text hierarchy (soft contrast, not harsh black)
+  text: palette.ink900,
+  textDim: palette.ink700,
+  textSubtle: palette.ink500,
+
+  // Background system (warm paper layers)
+  background: palette.paper50,
+  surface: palette.paper100,
+  elevated: palette.paper200,
+
+  border: palette.paper300,
+  separator: palette.paper300,
+
+  // Accent system
   tint: palette.gold500,
   tintLight: palette.gold300,
   tintSubtle: palette.gold100,
-  tintInactive: palette.navy500,
-  separator: palette.navy600,
+  tintInactive: palette.slate400,
+
+  // Status
   error: palette.angry500,
   errorBackground: palette.angry100,
 } as const
