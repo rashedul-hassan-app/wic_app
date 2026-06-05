@@ -1,4 +1,4 @@
-import { FC, useState } from "react"
+import { FC, useCallback, useState } from "react"
 import { ActivityIndicator, TouchableOpacity, View, ViewStyle, TextStyle } from "react-native"
 import { addDays, format, parseISO, subDays } from "date-fns"
 import { Ionicons } from "@expo/vector-icons"
@@ -21,7 +21,10 @@ function todayISO() {
 }
 
 export const PrayerTimesScreen: FC = () => {
-  const { themed, theme: { colors } } = useAppTheme()
+  const {
+    themed,
+    theme: { colors },
+  } = useAppTheme()
 
   const [selectedDate, setSelectedDate] = useState(todayISO)
   const isToday = selectedDate === todayISO()
@@ -33,11 +36,9 @@ export const PrayerTimesScreen: FC = () => {
   const { data: todayData } = usePrayerTimes(todayISO())
   const currentPrayer = useCurrentPrayer(todayData?.prayers ?? [])
 
-  const handlePrev = () =>
-    setSelectedDate(format(subDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
+  const handlePrev = () => setSelectedDate(format(subDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
 
-  const handleNext = () =>
-    setSelectedDate(format(addDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
+  const handleNext = () => setSelectedDate(format(addDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
 
   return (
     <Screen
@@ -74,9 +75,7 @@ export const PrayerTimesScreen: FC = () => {
             currentPrayerName={isToday ? (currentPrayer?.prayer.name ?? null) : null}
             countdownLabel={isToday ? currentPrayer?.countdownLabel : undefined}
           />
-          {data.jumuah.length > 0 && (
-            <JumuahTable jumuah={data.jumuah} />
-          )}
+          {data.jumuah.length > 0 && <JumuahTable jumuah={data.jumuah} />}
         </>
       ) : null}
 
@@ -86,7 +85,16 @@ export const PrayerTimesScreen: FC = () => {
 }
 
 function AppHeader() {
-  const { themed, theme: { colors } } = useAppTheme()
+  const {
+    themed,
+    theme: { colors },
+    themeContext,
+    setThemeContextOverride,
+  } = useAppTheme()
+
+  const handleChangeTheme = useCallback(() => {
+    setThemeContextOverride(themeContext === "light" ? "dark" : "light")
+  }, [setThemeContextOverride, themeContext])
 
   return (
     <View style={themed($header)}>
@@ -95,8 +103,12 @@ function AppHeader() {
         WIC Prayer App
       </Text>
       <View style={$headerRight}>
-        <TouchableOpacity hitSlop={8}>
-          <Ionicons name="partly-sunny-outline" size={22} color={colors.textDim} />
+        <TouchableOpacity hitSlop={8} onPress={handleChangeTheme}>
+          <Ionicons
+            name={themeContext == "dark" ? "moon-outline" : "partly-sunny-outline"}
+            size={22}
+            color={colors.textDim}
+          />
         </TouchableOpacity>
         <TouchableOpacity hitSlop={8} style={themed($menuButton)}>
           <Ionicons name="menu-outline" size={24} color={colors.textDim} />
