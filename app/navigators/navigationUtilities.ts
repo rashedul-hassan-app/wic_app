@@ -32,6 +32,41 @@ export const navigationRef = createNavigationContainerRef<AppStackParamList>()
  * @param {NavigationState | PartialState<NavigationState>} state - The navigation state to traverse.
  * @returns {string} - The name of the current screen.
  */
+function getMainStackState(state: NavigationState | PartialState<NavigationState>) {
+  const mainRoute = state.routes?.find((route) => route.name === "Main")
+  return mainRoute?.state as NavigationState | PartialState<NavigationState> | undefined
+}
+
+function sanitizeNavigationStateForPersistence(
+  state: NavigationState | PartialState<NavigationState>,
+): NavigationState | PartialState<NavigationState> {
+  const mainState = getMainStackState(state)
+  if (!mainState?.routes?.length) return state
+
+  const activeRoute = mainState.routes[mainState.index ?? 0]
+  if (activeRoute?.name !== "Alerts") return state
+
+  const tabsRoute = mainState.routes.find((route) => route.name === "Tabs") ?? { name: "Tabs" }
+
+  const nextState = {
+    ...state,
+    routes: state.routes?.map((route) =>
+      route.name === "Main"
+        ? {
+            ...route,
+            state: {
+              ...mainState,
+              routes: [tabsRoute],
+              index: 0,
+            },
+          }
+        : route,
+    ),
+  }
+
+  return nextState as NavigationState | PartialState<NavigationState>
+}
+
 export function getActiveRouteName(state: NavigationState | PartialState<NavigationState>): string {
   const route = state.routes[state.index ?? 0]
 
@@ -140,8 +175,8 @@ export function useNavigationPersistence(storage: Storage, persistenceKey: strin
       // Save the current route name for later comparison
       routeNameRef.current = currentRouteName as keyof AppStackParamList
 
-      // Persist state to storage
-      storage.save(persistenceKey, state)
+      // Never persist the Alerts screen — icon launches should always open Timetable.
+      storage.save(persistenceKey, sanitizeNavigationStateForPersistence(state))
     }
   }
 
@@ -152,7 +187,10 @@ export function useNavigationPersistence(storage: Storage, persistenceKey: strin
       // Only restore the state if app has not started from a deep link
       if (!initialUrl) {
         const state = (await storage.load(persistenceKey)) as NavigationProps["initialState"] | null
-        if (state) setInitialNavigationState(state)
+        if (state) {
+          // Strip any saved Alerts route so icon launches always reopen Timetable.
+          setInitialNavigationState(sanitizeNavigationStateForPersistence(state))
+        }
       }
     } finally {
       if (isMounted()) setIsRestored(true)

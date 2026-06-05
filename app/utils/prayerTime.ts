@@ -11,6 +11,14 @@ export function formatPrayerTime(time24h: string): string {
   return format(d, "h:mm")
 }
 
+/** "17:16" → "5:16 pm" */
+export function formatPrayerTime12h(time24h: string): string {
+  const [h, m] = time24h.split(":").map(Number)
+  const d = new Date()
+  d.setHours(h, m, 0, 0)
+  return format(d, "h:mm a").toLowerCase()
+}
+
 /**
  * Returns the display date header string.
  * "2026-05-27" → "WED • 27 MAY 2026"

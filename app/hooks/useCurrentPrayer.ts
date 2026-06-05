@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react"
-import { getDay, parseISO } from "date-fns"
 
-import type { JumuahTime, PrayerTime } from "@/models/prayer.types"
+import type { PrayerTime } from "@/models/prayer.types"
 
 export interface CurrentPrayerInfo {
   prayer: PrayerTime
@@ -9,6 +8,11 @@ export interface CurrentPrayerInfo {
   countdownLabel: string
   /** Exact minutes until next prayer (for alert scheduling) */
   minutesLeft: number
+  nextPrayer: {
+    prayer: PrayerTime
+    countdownLabel: string
+    minutesLeft: number
+  }
   nextJamaah: {
     prayer: PrayerTime
     countdownLabel: string
@@ -75,11 +79,18 @@ function compute(prayers: PrayerTime[], now: Date): CurrentPrayerInfo | null {
   if (idx === -1) {
     // Before Fajr — we're in yesterday's Isha window
     const fajrMin = toMinutes(prayers[0].begins)
+    const minutesUntilFajr = fajrMin - nowMin
+
     return {
       prayer: prayers[prayers.length - 1],
-      countdownLabel: formatCountdown(fajrMin - nowMin),
+      countdownLabel: formatCountdown(minutesUntilFajr),
+      nextPrayer: {
+        prayer: prayers[0],
+        countdownLabel: formatCountdown(minutesUntilFajr),
+        minutesLeft: minutesUntilFajr,
+      },
       nextJamaah,
-      minutesLeft: fajrMin - nowMin,
+      minutesLeft: minutesUntilFajr,
     }
   }
 
@@ -89,9 +100,16 @@ function compute(prayers: PrayerTime[], now: Date): CurrentPrayerInfo | null {
       ? toMinutes(prayers[nextIdx].begins) - nowMin
       : 1440 - nowMin + toMinutes(prayers[0].begins) // wrap to tomorrow's Fajr
 
+  const nextPrayer = nextIdx < prayers.length ? prayers[nextIdx] : prayers[0]
+
   return {
     prayer: prayers[idx],
     countdownLabel: formatCountdown(minutesUntilNext),
+    nextPrayer: {
+      prayer: nextPrayer,
+      countdownLabel: formatCountdown(minutesUntilNext),
+      minutesLeft: minutesUntilNext,
+    },
     nextJamaah,
     minutesLeft: minutesUntilNext,
   }
@@ -106,7 +124,8 @@ export function useCurrentPrayer(prayers: PrayerTime[]): CurrentPrayerInfo | nul
     const update = () => setInfo(compute(prayers, new Date()))
     update()
 
-    const id = setInterval(update, 60_000)
+    const tickMs = 1_000
+    const id = setInterval(update, tickMs)
     return () => clearInterval(id)
   }, [prayers])
 

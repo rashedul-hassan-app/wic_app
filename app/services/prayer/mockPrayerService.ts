@@ -1,4 +1,4 @@
-import { differenceInCalendarDays, parseISO } from "date-fns"
+import { differenceInCalendarDays, format, parseISO } from "date-fns"
 
 import type { DayPrayerTimes, PrayerTime } from "@/models/prayer.types"
 
@@ -18,12 +18,40 @@ const BASE: Record<string, BasePrayer> = {
   isha: { begins: "22:11", jamaah: "22:30" },
 }
 
+function offsetFromNow(now: Date, deltaMinutes: number): string {
+  const d = new Date(now)
+  d.setMinutes(d.getMinutes() + deltaMinutes)
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+}
+
+/** Dev-only: Maghrib in 1 min, Maghrib jamaah in 11 min. */
+function buildDevTestPrayerTimes(now: Date): PrayerTime[] {
+  return [
+    { name: "fajr", label: "Fajr", begins: offsetFromNow(now, -600), jamaah: offsetFromNow(now, -572) },
+    { name: "sunrise", label: "Sunrise 🌅", begins: offsetFromNow(now, -580), jamaah: null },
+    { name: "duha", label: "Duha ☀️", begins: offsetFromNow(now, -565), jamaah: null },
+    { name: "dhuhr", label: "Dhuhr", begins: offsetFromNow(now, -240), jamaah: offsetFromNow(now, -209) },
+    { name: "asr", label: "Asr", begins: offsetFromNow(now, -90), jamaah: offsetFromNow(now, -50) },
+    { name: "maghrib", label: "Maghrib", begins: offsetFromNow(now, 1), jamaah: offsetFromNow(now, 11) },
+    { name: "isha", label: "Isha", begins: offsetFromNow(now, 90), jamaah: offsetFromNow(now, 109) },
+  ]
+}
+
 function shiftTime(time24h: string, deltaMinutes: number): string {
   const [h, m] = time24h.split(":").map(Number)
   const total = (((h * 60 + m + deltaMinutes) % 1440) + 1440) % 1440
   const hh = Math.floor(total / 60)
   const mm = total % 60
   return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`
+}
+
+let cachedDevDate: string | null = null
+let cachedDevDayPrayerTimes: DayPrayerTimes | null = null
+
+/** Fresh mock times each app launch so dev alerts can fire again at the new slot. */
+export function resetDevMockPrayerCache() {
+  cachedDevDate = null
+  cachedDevDayPrayerTimes = null
 }
 
 class MockPrayerService implements IPrayerService {
@@ -33,6 +61,34 @@ class MockPrayerService implements IPrayerService {
   }
 
   private build(date: string): DayPrayerTimes {
+    const today = format(new Date(), "yyyy-MM-dd")
+    if (__DEV__ && date === today) {
+      if (cachedDevDate === today && cachedDevDayPrayerTimes) {
+        return cachedDevDayPrayerTimes
+      }
+
+      const now = new Date()
+      const maghribBegins = offsetFromNow(now, 1)
+      const maghribJamaah = offsetFromNow(now, 11)
+
+      cachedDevDate = today
+      cachedDevDayPrayerTimes = {
+        date,
+        prayers: buildDevTestPrayerTimes(now),
+        jumuah: [
+          {
+            id: "jumuah_1",
+            label: "Jumu'ah 1",
+            khutbah: offsetFromNow(now, 60),
+            jamaah: offsetFromNow(now, 85),
+          },
+        ],
+        announcement: `TEST · Maghrib ${maghribBegins} (1 min) · Jamaah ${maghribJamaah} (11 min)`,
+      }
+
+      return cachedDevDayPrayerTimes
+    }
+
     const offset = differenceInCalendarDays(parseISO(date), parseISO(BASE_DATE))
 
     // London summer: Fajr gets ~1.5min earlier per day, Maghrib/Isha get later

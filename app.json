@@ -22,7 +22,12 @@
       "backgroundImage": "./assets/images/app-icon-android-adaptive-background.png"
     },
     "allowBackup": false,
-    "edgeToEdgeEnabled": true
+    "edgeToEdgeEnabled": true,
+    "permissions": [
+      "android.permission.SCHEDULE_EXACT_ALARM",
+      "android.permission.USE_EXACT_ALARM",
+      "android.permission.POST_NOTIFICATIONS"
+    ]
   },
   "ios": {
     "icon": "./assets/images/app-icon-ios.png",
@@ -34,6 +39,13 @@
     "bundler": "metro"
   },
   "plugins": [
+    [
+      "expo-notifications",
+      {
+        "icon": "./assets/images/app-icon-android-legacy.png",
+        "color": "#191015"
+      }
+    ],
     "expo-localization",
     "expo-font",
     [

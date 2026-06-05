@@ -1,5 +1,10 @@
 import { create } from "zustand"
 
+import {
+  alertInstanceKey,
+  migratePersistedAlertEvents,
+  normalizeAlertEvent,
+} from "@/services/notifications/alertEventIds"
 import { load, save } from "@/utils/storage"
 
 export type AlertEvent = {
@@ -12,22 +17,26 @@ export type AlertEvent = {
 
 type AlertState = {
   events: AlertEvent[]
-
-  // NEW 👇
   jumuahLastShown: string | null
 
   addEvents: (events: AlertEvent[]) => void
   clear: () => void
   markAllAsRead: () => void
-
-  // NEW 👇
   setJumuahLastShown: (date: string | null) => void
 }
 
 const ALERT_EVENTS_STORAGE_KEY = "ALERT_EVENTS"
 const JUMUAH_STORAGE_KEY = "JUMUAH_LAST_SHOWN"
 
-const persistedEvents = load<AlertEvent[]>(ALERT_EVENTS_STORAGE_KEY) ?? []
+const loadedEvents = load<AlertEvent[]>(ALERT_EVENTS_STORAGE_KEY) ?? []
+const persistedEvents = migratePersistedAlertEvents(loadedEvents)
+
+const migratedIds = persistedEvents.map((event) => event.id).join("|")
+const loadedIds = loadedEvents.map((event) => event.id).join("|")
+
+if (migratedIds !== loadedIds) {
+  save(ALERT_EVENTS_STORAGE_KEY, persistedEvents)
+}
 const persistedJumuah = load<string | null>(JUMUAH_STORAGE_KEY) ?? null
 
 function persistEvents(events: AlertEvent[]) {
@@ -44,10 +53,15 @@ export const useAlertStore = create<AlertState>((set) => ({
 
   addEvents: (events) =>
     set((state) => {
-      const map = new Map(state.events.map((e) => [e.id, e]))
-      events.forEach((e) => map.set(e.id, e))
+      const existingKeys = new Set(state.events.map((event) => alertInstanceKey(event)))
+      const toAdd = events
+        .map((event) => normalizeAlertEvent(event))
+        .filter((event) => !existingKeys.has(alertInstanceKey(event)))
+        .map((event) => ({ ...event, read: event.read ?? false }))
 
-      const nextEvents = Array.from(map.values())
+      if (!toAdd.length) return state
+
+      const nextEvents = [...state.events, ...toAdd]
       persistEvents(nextEvents)
 
       return { events: nextEvents }
@@ -60,12 +74,11 @@ export const useAlertStore = create<AlertState>((set) => ({
 
   markAllAsRead: () =>
     set((state) => {
-      const nextEvents = state.events.map((e) => ({ ...e, read: true }))
+      const nextEvents = state.events.map((event) => ({ ...event, read: true }))
       persistEvents(nextEvents)
       return { events: nextEvents }
     }),
 
-  // NEW 👇
   setJumuahLastShown: (date) =>
     set(() => {
       persistJumuah(date)

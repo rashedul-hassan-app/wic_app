@@ -7,11 +7,12 @@ import { Screen } from "@/components/Screen"
 import { Text } from "@/components/Text"
 import { useAlertBadge } from "@/hooks/useAlertBadge"
 import { useCurrentPrayer } from "@/hooks/useCurrentPrayer"
-import { usePrayerAlerts } from "@/hooks/usePrayerAlerts"
 import { usePrayerTimes } from "@/hooks/usePrayerTimes"
 import type { MainTabScreenProps } from "@/navigators/navigationTypes"
 import { useAppTheme } from "@/theme/context"
 import type { ThemedStyle } from "@/theme/types"
+
+import { getAnnouncementBannerText } from "@/utils/announcementBanner"
 
 import { AnnouncementBanner } from "./components/AnnouncementBanner"
 import { DateNavigator } from "./components/DateNavigator"
@@ -39,11 +40,16 @@ export const PrayerTimesScreen: FC<MainTabScreenProps<"Timetable">> = ({ navigat
   const { data: todayData } = usePrayerTimes(todayISO())
   const currentPrayer = useCurrentPrayer(todayData?.prayers ?? [])
 
-  usePrayerAlerts(currentPrayer, todayData?.prayers ?? [])
-
   const handlePrev = () => setSelectedDate(format(subDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
 
   const handleNext = () => setSelectedDate(format(addDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
+
+  const bannerText = getAnnouncementBannerText({
+    isToday,
+    currentPrayer,
+    jumuah: data?.jumuah ?? todayData?.jumuah ?? [],
+    staticAnnouncement: data?.announcement ?? null,
+  })
 
   return (
     <Screen
@@ -55,7 +61,7 @@ export const PrayerTimesScreen: FC<MainTabScreenProps<"Timetable">> = ({ navigat
     >
       <AppHeader navigation={navigation} />
 
-      {data?.announcement && <AnnouncementBanner text={data.announcement} />}
+      {bannerText && <AnnouncementBanner text={bannerText} />}
 
       <PrayerInfoCards
         currentPrayer={currentPrayer}

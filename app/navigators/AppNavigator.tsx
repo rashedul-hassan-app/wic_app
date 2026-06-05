@@ -8,6 +8,8 @@ import { useAppTheme } from "@/theme/context"
 
 import { MainStackNavigator } from "./MainStackNavigator"
 import type { AppStackParamList, NavigationProps } from "./navigationTypes"
+import { flushPendingNotificationNavigation } from "@/services/notifications/notificationService"
+
 import { navigationRef, useBackButtonHandler } from "./navigationUtilities"
 
 const exitRoutes = Config.exitRoutes
@@ -42,7 +44,12 @@ export function AppNavigator(props: NavigationProps) {
   useBackButtonHandler((routeName) => exitRoutes.includes(routeName))
 
   return (
-    <NavigationContainer ref={navigationRef} theme={navigationTheme} {...props}>
+    <NavigationContainer
+      ref={navigationRef}
+      theme={navigationTheme}
+      onReady={flushPendingNotificationNavigation}
+      {...props}
+    >
       <ErrorBoundary catchErrors={Config.catchErrors}>
         <AppStack />
       </ErrorBoundary>

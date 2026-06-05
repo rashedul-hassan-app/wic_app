@@ -17,7 +17,7 @@ export type MainTabParamList = {
 // Main stack (wraps the bottom-tabs and other main-stack screens)
 export type MainStackParamList = {
   Tabs: NavigatorScreenParams<MainTabParamList> | undefined
-  Alerts: undefined
+  Alerts: { highlightEventId?: string } | undefined
 }
 
 // Root stack navigator
