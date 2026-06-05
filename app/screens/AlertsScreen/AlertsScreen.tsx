@@ -7,13 +7,9 @@ import { format, parseISO } from "date-fns"
 
 import { Screen } from "@/components/Screen"
 import { Text } from "@/components/Text"
-import { usePrayerTimes } from "@/hooks/usePrayerTimes"
 import type { MainStackParamList } from "@/navigators/navigationTypes"
-import {
-  alertInstanceKey,
-  alertInstanceKeyFromParts,
-} from "@/services/notifications/alertEventIds"
-import { getUpcomingAlertEvents } from "@/services/notifications/prayerNotificationScheduler"
+import { alertInstanceKeyFromParts } from "@/services/notifications/alertEventIds"
+import { syncBadgeCount } from "@/services/notifications/notificationService"
 import type { AlertEvent } from "@/stores/useAlertStore"
 import { useAlertStore } from "@/stores/useAlertStore"
 import { useAppTheme } from "@/theme/context"
@@ -53,7 +49,11 @@ export function AlertsScreen() {
 
   const events = useAlertStore((s) => s.events)
   const clearAlerts = useAlertStore((s) => s.clear)
-  const { data: todayPrayerTimes } = usePrayerTimes(todayISO())
+
+  const handleClear = useCallback(() => {
+    clearAlerts()
+    void syncBadgeCount()
+  }, [clearAlerts])
   const isFocusedRef = useRef(false)
 
   useEffect(() => {
@@ -65,6 +65,7 @@ export function AlertsScreen() {
     const store = useAlertStore.getState()
     if (store.events.some((event) => !event.read)) {
       store.markAllAsRead()
+      void syncBadgeCount()
     }
   }, [])
 
@@ -86,26 +87,30 @@ export function AlertsScreen() {
   const highlightKey = highlightEventId ? alertInstanceKeyFromParts(highlightEventId, "") : null
 
   const sections = useMemo(() => {
-    const storedKeys = new Set(events.map((event) => alertInstanceKey(event)))
-    const nowDate = new Date(now)
-
-    const upcoming =
-      todayPrayerTimes && todayPrayerTimes.date === todayISO()
-        ? getUpcomingAlertEvents(todayPrayerTimes, nowDate)
-            .filter((event) => !storedKeys.has(alertInstanceKey(event)))
-            .sort(sortByEventAtAsc)
-        : []
+    const upcoming = events
+      .filter((event) => new Date(event.eventAt).getTime() > now)
+      .sort(sortByEventAtAsc)
 
     const newAlerts = events
       .filter((event) => !event.read && new Date(event.eventAt).getTime() <= now)
       .sort(sortByEventAtDesc)
 
     const recent = events
-      .filter((event) => event.read && isToday(event.eventAt))
+      .filter(
+        (event) =>
+          event.read &&
+          new Date(event.eventAt).getTime() <= now &&
+          isToday(event.eventAt),
+      )
       .sort(sortByEventAtDesc)
 
     const older = events
-      .filter((event) => event.read && !isToday(event.eventAt))
+      .filter(
+        (event) =>
+          event.read &&
+          new Date(event.eventAt).getTime() <= now &&
+          !isToday(event.eventAt),
+      )
       .sort(sortByEventAtDesc)
 
     const result: { title: string; data: AlertEvent[] }[] = []
@@ -116,7 +121,7 @@ export function AlertsScreen() {
     if (older.length) result.push({ title: "Older", data: older })
 
     return result
-  }, [events, now, todayPrayerTimes])
+  }, [events, now])
 
   useEffect(() => {
     if (!highlightEventId) return
@@ -169,7 +174,7 @@ export function AlertsScreen() {
           Alerts
         </Text>
 
-        <TouchableOpacity onPress={clearAlerts} hitSlop={8} style={themed($clearButton)}>
+        <TouchableOpacity onPress={handleClear} hitSlop={8} style={themed($clearButton)}>
           <Text weight="medium" style={themed($clearText)}>
             Clear
           </Text>

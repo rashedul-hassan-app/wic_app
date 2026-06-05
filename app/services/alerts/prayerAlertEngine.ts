@@ -37,9 +37,16 @@ function nowSeconds(date: Date): number {
 }
 
 function toEventAt(time24h: string, date: Date): string {
-  const [h, m] = time24h.split(":").map(Number)
-  const eventAt = new Date(date)
-  eventAt.setHours(h, m, 0, 0)
+  const [hour, minute] = time24h.split(":").map(Number)
+  const eventAt = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    hour,
+    minute,
+    0,
+    0,
+  )
   return eventAt.toISOString()
 }
 

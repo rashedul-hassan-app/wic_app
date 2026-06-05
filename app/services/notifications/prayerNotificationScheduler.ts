@@ -81,11 +81,6 @@ async function scheduleEvent(event: AlertEvent, triggerAt: Date) {
   })
 }
 
-/** Future prayer alerts for today — used by the Alerts screen Upcoming section. */
-export function getUpcomingAlertEvents(day: DayPrayerTimes, now: Date = new Date()): AlertEvent[] {
-  return buildSchedulableEvents(day, now).map(({ event }) => event)
-}
-
 function buildSchedulableEvents(day: DayPrayerTimes, now: Date): { event: AlertEvent; triggerAt: Date }[] {
   const scheduled: { event: AlertEvent; triggerAt: Date }[] = []
   const date = parseISO(day.date)

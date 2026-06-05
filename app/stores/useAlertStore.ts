@@ -69,7 +69,7 @@ export const useAlertStore = create<AlertState>((set) => ({
 
   clear: () => {
     persistEvents([])
-    return set({ events: [] })
+    set({ events: [] })
   },
 
   markAllAsRead: () =>
