@@ -107,11 +107,33 @@ export const NotificationScreen: FC<NotificationScreenProps> = ({ navigation }) 
     try {
       const result = await scheduleMockNotification()
 
+      if (result.status === "scheduled") {
+        Alert.alert(
+          "Notification scheduled",
+          `iOS accepted the notification. Pending notifications: ${result.pendingCount ?? "unknown"}. Lock the phone and wait about 5 seconds.`,
+        )
+        return
+      }
+
+      if (result.status === "permission_denied") {
+        Alert.alert(
+          "Notifications disabled",
+          "Notification permission is denied for this app. Enable notifications from iOS Settings, then try again.",
+        )
+        return
+      }
+
+      if (result.status === "module_unavailable") {
+        Alert.alert(
+          "Native module unavailable",
+          "expo-notifications is not available in this runtime. Run the app from a native development build to test local notifications.",
+        )
+        return
+      }
+
       Alert.alert(
-        result.scheduledId ? "Notification scheduled" : "Notification not scheduled",
-        result.scheduledId
-          ? `iOS accepted the notification. Pending notifications: ${result.pendingCount ?? "unknown"}. Lock the phone and wait about 5 seconds.`
-          : "The native notification module or permission was not available.",
+        "Notification failed",
+        result.error ?? "Unable to schedule the test notification.",
       )
     } catch (e) {
       Alert.alert(

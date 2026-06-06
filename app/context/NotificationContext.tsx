@@ -13,7 +13,10 @@ import { useMMKVString } from "react-native-mmkv"
 
 import type { AppNotification } from "@/models/notification.types"
 import { mockNotificationService } from "@/services/notifications/mockNotificationService"
-import { notificationDeviceService } from "@/services/notifications/notificationDeviceService"
+import {
+  notificationDeviceService,
+  type ScheduleLocalNotificationResult,
+} from "@/services/notifications/notificationDeviceService"
 import {
   countUnreadNotifications,
   getUnseenNotifications,
@@ -29,6 +32,10 @@ import { sortNotificationsNewestFirst } from "@/services/notifications/sortNotif
 
 const NOTIFICATION_STATE_KEY = "NotificationProvider.state"
 
+type ScheduledMockNotificationResult = ScheduleLocalNotificationResult & {
+  pendingCount: number | null
+}
+
 export type NotificationContextType = {
   notifications: AppNotification[]
   unreadCount: number
@@ -37,10 +44,7 @@ export type NotificationContextType = {
   refresh: () => Promise<void>
   markAllRead: () => void
   addNotification: (notification: AppNotification) => void
-  scheduleMockNotification: () => Promise<{
-    scheduledId: string | null
-    pendingCount: number | null
-  }>
+  scheduleMockNotification: () => Promise<ScheduledMockNotificationResult>
 }
 
 export const NotificationContext = createContext<NotificationContextType | null>(null)
@@ -105,12 +109,12 @@ export const NotificationProvider: FC<PropsWithChildren> = ({ children }) => {
         // Stagger multiple new mock rows so iOS does not receive a burst at the same second.
         // The badge number is attached to the scheduled notification so iOS can update
         // the app icon even while the app is locked/backgrounded.
-        const scheduledId = await notificationDeviceService.scheduleLocalNotification(
+        const result = await notificationDeviceService.scheduleLocalNotification(
           notification,
           5 + index * 2,
           nextUnreadCount,
         )
-        if (scheduledId) scheduledNotificationIds.push(notification.id)
+        if (result.status === "scheduled") scheduledNotificationIds.push(notification.id)
       }
 
       // Mark all unseen rows as known so refresh/app reload does not keep re-triggering them.
@@ -169,21 +173,29 @@ export const NotificationProvider: FC<PropsWithChildren> = ({ children }) => {
     })
   }, [])
 
-  const scheduleMockNotification = useCallback(async () => {
-    // Development helper: schedule the newest mock notification locally.
-    // Production push/API work can reuse the same AppNotification shape later.
-    const notification = notifications[0] ?? (await mockNotificationService.getNotifications())[0]
-    if (!notification) return { scheduledId: null, pendingCount: null }
+  const scheduleMockNotification =
+    useCallback(async (): Promise<ScheduledMockNotificationResult> => {
+      // Development helper: schedule the newest mock notification locally.
+      // Production push/API work can reuse the same AppNotification shape later.
+      const notification = notifications[0] ?? (await mockNotificationService.getNotifications())[0]
+      if (!notification) {
+        return {
+          status: "failed",
+          scheduledId: null,
+          pendingCount: null,
+          error: "No mock notification is available to schedule.",
+        }
+      }
 
-    const scheduledId = await notificationDeviceService.scheduleLocalNotification(
-      notification,
-      5,
-      Math.max(unreadCount, 1),
-    )
-    const pendingCount = await notificationDeviceService.getScheduledNotificationCount()
+      const result = await notificationDeviceService.scheduleLocalNotification(
+        notification,
+        5,
+        Math.max(unreadCount, 1),
+      )
+      const pendingCount = await notificationDeviceService.getScheduledNotificationCount()
 
-    return { scheduledId, pendingCount }
-  }, [notifications, unreadCount])
+      return { ...result, pendingCount }
+    }, [notifications, unreadCount])
 
   useEffect(() => {
     refresh()

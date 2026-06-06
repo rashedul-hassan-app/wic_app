@@ -8,6 +8,16 @@ const NOTIFICATION_CHANNEL_ID = "wic-prayer-reminders"
 type NotificationListener = (notification: AppNotification) => void
 type EventSubscription = { remove: () => void }
 type NotificationsModule = typeof ExpoNotifications
+export type ScheduleLocalNotificationResult =
+  | {
+      status: "scheduled"
+      scheduledId: string
+    }
+  | {
+      status: "module_unavailable" | "permission_denied" | "failed"
+      scheduledId: null
+      error?: string
+    }
 
 type NotificationData = {
   id?: unknown
@@ -169,36 +179,46 @@ class NotificationDeviceService {
     notification: AppNotification,
     seconds = 5,
     badgeCount?: number,
-  ): Promise<string | null> {
+  ): Promise<ScheduleLocalNotificationResult> {
     const Notifications = getNotificationsModule()
-    if (!Notifications) return null
+    if (!Notifications) return { status: "module_unavailable", scheduledId: null }
 
     const hasPermission = await this.requestPermissions()
-    if (!hasPermission) return null
+    if (!hasPermission) return { status: "permission_denied", scheduledId: null }
 
-    await this.configureAndroidChannel()
+    try {
+      await this.configureAndroidChannel()
 
-    // Scheduled demo notifications get a fresh id/time so they appear as new inbox rows.
-    const scheduledNotification: AppNotification = {
-      ...notification,
-      id: `local_${notification.id}_${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      readAt: undefined,
+      // Scheduled demo notifications get a fresh id/time so they appear as new inbox rows.
+      const scheduledNotification: AppNotification = {
+        ...notification,
+        id: `local_${notification.id}_${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        readAt: undefined,
+      }
+
+      const scheduledId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: scheduledNotification.title,
+          body: scheduledNotification.message,
+          badge: badgeCount,
+          sound: "default",
+          data: toLocalNotificationData(scheduledNotification),
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds,
+        },
+      })
+
+      return { status: "scheduled", scheduledId }
+    } catch (e) {
+      return {
+        status: "failed",
+        scheduledId: null,
+        error: e instanceof Error ? e.message : "Unable to schedule notification.",
+      }
     }
-
-    return Notifications.scheduleNotificationAsync({
-      content: {
-        title: scheduledNotification.title,
-        body: scheduledNotification.message,
-        badge: badgeCount,
-        sound: "default",
-        data: toLocalNotificationData(scheduledNotification),
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds,
-      },
-    })
   }
 
   async getScheduledNotificationCount(): Promise<number | null> {
