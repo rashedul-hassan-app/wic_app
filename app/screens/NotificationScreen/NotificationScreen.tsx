@@ -65,8 +65,8 @@ export const NotificationScreen: FC<NotificationScreenProps> = ({ navigation }) 
   useEffect(() => {
     if (!isFocused) return
 
-    // Opening the inbox reloads the mock feed.
-    // In dev, NotificationProvider uses that refresh to schedule truly new mock rows once.
+    // Opening the inbox can refresh the mock feed, but NotificationProvider gates it
+    // with a staleness check so this does not become an expensive real API call later.
     refresh()
   }, [isFocused, refresh])
 
@@ -98,8 +98,12 @@ export const NotificationScreen: FC<NotificationScreenProps> = ({ navigation }) 
     // A manual refresh counts as re-seeing the inbox, so temporary highlights are removed.
     setHighlightedNotificationIds(new Set())
     setRefreshing(true)
-    await refresh()
+    await refresh({ force: true })
     setRefreshing(false)
+  }, [refresh])
+
+  const handleRetry = useCallback(() => {
+    refresh({ force: true })
   }, [refresh])
 
   const handleScheduleMockNotification = useCallback(async () => {
@@ -212,7 +216,7 @@ export const NotificationScreen: FC<NotificationScreenProps> = ({ navigation }) 
             Unable to load notifications
           </Text>
           <Text style={themed($emptyText)}>{error}</Text>
-          <TouchableOpacity style={themed($retryButton)} activeOpacity={0.7} onPress={refresh}>
+          <TouchableOpacity style={themed($retryButton)} activeOpacity={0.7} onPress={handleRetry}>
             <Text style={themed($retryText)} weight="medium">
               Try Again
             </Text>

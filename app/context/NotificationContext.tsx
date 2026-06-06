@@ -31,6 +31,11 @@ import {
 import { sortNotificationsNewestFirst } from "@/services/notifications/sortNotifications"
 
 const NOTIFICATION_STATE_KEY = "NotificationProvider.state"
+const NOTIFICATION_REFRESH_STALE_MS = 60 * 1000
+
+type RefreshOptions = {
+  force?: boolean
+}
 
 type ScheduledMockNotificationResult = ScheduleLocalNotificationResult & {
   pendingCount: number | null
@@ -41,7 +46,7 @@ export type NotificationContextType = {
   unreadCount: number
   isLoading: boolean
   error: string | null
-  refresh: () => Promise<void>
+  refresh: (options?: RefreshOptions) => Promise<void>
   markAllRead: () => void
   addNotification: (notification: AppNotification) => void
   scheduleMockNotification: () => Promise<ScheduledMockNotificationResult>
@@ -54,6 +59,7 @@ export const NotificationProvider: FC<PropsWithChildren> = ({ children }) => {
   const [sourceNotifications, setSourceNotifications] = useState<AppNotification[]>([])
   const [isLoading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const lastRefreshedAtRef = useRef<number | null>(null)
 
   // MMKV stores only read metadata, not the whole notification list.
   // That lets mock/API notifications change later without wiping the user's read history.
@@ -135,22 +141,35 @@ export const NotificationProvider: FC<PropsWithChildren> = ({ children }) => {
     [setPersistedStateString],
   )
 
-  const refresh = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+  const refresh = useCallback(
+    async ({ force = false }: RefreshOptions = {}) => {
+      const now = Date.now()
+      const lastRefreshedAt = lastRefreshedAtRef.current
+      const isStale = !lastRefreshedAt || now - lastRefreshedAt >= NOTIFICATION_REFRESH_STALE_MS
 
-    try {
-      // This is the temporary data boundary. When a real API exists,
-      // only the service implementation should change, not the screen UI.
-      const result = await mockNotificationService.getNotifications()
-      setSourceNotifications(result)
-      await syncMockNotificationScheduling(result)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to load notifications.")
-    } finally {
-      setLoading(false)
-    }
-  }, [syncMockNotificationScheduling])
+      // Focus refreshes help with mock-data testing, but a real API should not be
+      // called every time the user returns to the screen. Manual refresh passes
+      // force=true, so pull-to-refresh/retry still bypass this staleness gate.
+      if (!force && !isStale) return
+
+      setLoading(true)
+      setError(null)
+
+      try {
+        // This is the temporary data boundary. When a real API exists,
+        // only the service implementation should change, not the screen UI.
+        const result = await mockNotificationService.getNotifications()
+        lastRefreshedAtRef.current = Date.now()
+        setSourceNotifications(result)
+        await syncMockNotificationScheduling(result)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Unable to load notifications.")
+      } finally {
+        setLoading(false)
+      }
+    },
+    [syncMockNotificationScheduling],
+  )
 
   const markAllRead = useCallback(() => {
     if (unreadCount === 0) return
@@ -198,7 +217,7 @@ export const NotificationProvider: FC<PropsWithChildren> = ({ children }) => {
     }, [notifications, unreadCount])
 
   useEffect(() => {
-    refresh()
+    refresh({ force: true })
   }, [refresh])
 
   useEffect(() => {
