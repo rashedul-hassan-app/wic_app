@@ -5,6 +5,7 @@ import {
   migratePersistedAlertEvents,
   normalizeAlertEvent,
 } from "@/services/notifications/alertEventIds"
+import { isTimetableSlotDue } from "@/utils/prayerTime"
 import { load, save } from "@/utils/storage"
 
 export type AlertEvent = {
@@ -13,6 +14,8 @@ export type AlertEvent = {
   time: string
   eventAt: string
   read?: boolean
+  /** True after leaving Alerts — you've seen this row; it won't return to New when it becomes due. */
+  acknowledged?: boolean
 }
 
 type AlertState = {
@@ -21,15 +24,34 @@ type AlertState = {
 
   addEvents: (events: AlertEvent[]) => void
   clear: () => void
+  /** Marks all alerts read — clears badge when Alerts is opened. */
   markAllAsRead: () => void
+  /** Called when leaving Alerts — everything you've seen leaves New for good (including Upcoming). */
+  acknowledgeAllAlerts: () => void
+  replaceEvents: (events: AlertEvent[]) => void
   setJumuahLastShown: (date: string | null) => void
+  /** __DEV__ only — set Upcoming rows' eventAt to 1 min ago for section-transition testing. */
+  devBackdateUpcomingAlerts: () => void
+}
+
+export function isAlertDue(event: AlertEvent, nowMs = Date.now()) {
+  if (new Date(event.eventAt).getTime() <= nowMs) return true
+  return isTimetableSlotDue(event.time, nowMs)
+}
+
+/** Unread alerts — badge increments when a warning is added, clears when Alerts is opened. */
+export function countUnreadAlerts(events: AlertEvent[]) {
+  return events.filter((event) => !event.read).length
 }
 
 const ALERT_EVENTS_STORAGE_KEY = "ALERT_EVENTS"
 const JUMUAH_STORAGE_KEY = "JUMUAH_LAST_SHOWN"
 
 const loadedEvents = load<AlertEvent[]>(ALERT_EVENTS_STORAGE_KEY) ?? []
-const persistedEvents = migratePersistedAlertEvents(loadedEvents)
+const persistedEvents = migratePersistedAlertEvents(loadedEvents).map((event) => ({
+  ...event,
+  acknowledged: event.acknowledged ?? (event.read ?? false),
+}))
 
 const migratedIds = persistedEvents.map((event) => event.id).join("|")
 const loadedIds = loadedEvents.map((event) => event.id).join("|")
@@ -57,7 +79,11 @@ export const useAlertStore = create<AlertState>((set) => ({
       const toAdd = events
         .map((event) => normalizeAlertEvent(event))
         .filter((event) => !existingKeys.has(alertInstanceKey(event)))
-        .map((event) => ({ ...event, read: event.read ?? false }))
+        .map((event) => ({
+          ...event,
+          read: event.read ?? false,
+          acknowledged: event.acknowledged ?? false,
+        }))
 
       if (!toAdd.length) return state
 
@@ -79,9 +105,50 @@ export const useAlertStore = create<AlertState>((set) => ({
       return { events: nextEvents }
     }),
 
+  acknowledgeAllAlerts: () =>
+    set((state) => {
+      let changed = false
+      const nextEvents = state.events.map((event) => {
+        if (event.acknowledged) return event
+        changed = true
+        return { ...event, acknowledged: true, read: true }
+      })
+
+      if (!changed) return state
+
+      persistEvents(nextEvents)
+      return { events: nextEvents }
+    }),
+
+  replaceEvents: (events) => {
+    persistEvents(events)
+    set({ events })
+  },
+
   setJumuahLastShown: (date) =>
     set(() => {
       persistJumuah(date)
       return { jumuahLastShown: date }
     }),
+
+  devBackdateUpcomingAlerts: () => {
+    if (!__DEV__) return
+
+    const nowMs = Date.now()
+    const pastAt = new Date(nowMs - 60_000).toISOString()
+
+    set((state) => {
+      let changed = false
+      const nextEvents = state.events.map((event) => {
+        if (isAlertDue(event, nowMs)) return event
+        changed = true
+        return { ...event, eventAt: pastAt }
+      })
+
+      if (!changed) return state
+
+      persistEvents(nextEvents)
+      return { events: nextEvents }
+    })
+  },
 }))

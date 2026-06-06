@@ -1,10 +1,11 @@
-import { useAlertStore } from "@/stores/useAlertStore"
+import { countUnreadAlerts, useAlertStore } from "@/stores/useAlertStore"
 
 export function useAlertBadge() {
   const events = useAlertStore((s) => s.events)
-  const unread = events.filter((e) => !e.read).length
+  const count = countUnreadAlerts(events)
+
   return {
-    count: unread,
-    hasUnread: unread > 0,
+    count,
+    hasUnread: count > 0,
   }
 }

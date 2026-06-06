@@ -6,7 +6,7 @@ import { CommonActions } from "@react-navigation/native"
 import { ensureTimetableOnLaunch, navigationRef } from "@/navigators/navigationUtilities"
 import { normalizeAlertEvent } from "@/services/notifications/alertEventIds"
 import type { AlertEvent } from "@/stores/useAlertStore"
-import { useAlertStore } from "@/stores/useAlertStore"
+import { countUnreadAlerts, useAlertStore } from "@/stores/useAlertStore"
 import { loadString, saveString } from "@/utils/storage"
 
 const ANDROID_CHANNEL_ID = "prayer-alerts"
@@ -249,8 +249,14 @@ export async function handleNavigationContainerReady() {
 export async function syncBadgeCount() {
   if (!isNativePlatform()) return
 
-  const unread = useAlertStore.getState().events.filter((event) => !event.read).length
-  await Notifications.setBadgeCountAsync(unread)
+  const { events } = useAlertStore.getState()
+  await Notifications.setBadgeCountAsync(countUnreadAlerts(events))
+}
+
+/** Clear the OS icon badge when the user opens Alerts. */
+export async function clearNotificationBadge() {
+  if (!isNativePlatform()) return
+  await Notifications.setBadgeCountAsync(0)
 }
 
 function getNotificationListenerRegistry(): NotificationListenerRegistry {

@@ -7,6 +7,9 @@ import type { IPrayerService } from "./IPrayerService"
 /** Flip to true for Maghrib +1 min test timetable; false for real WIC times. */
 export const DEV_PRAYER_MOCK_ENABLED = false
 
+/** Dev: every launch, set Upcoming eventAt to 1 min ago (after sync) to test New → Recent. */
+export const DEV_BACKDATE_UPCOMING_ALERTS = false
+
 // Authoritative base times for 2026-05-27 (WIC, London)
 const BASE_DATE = "2026-05-27"
 

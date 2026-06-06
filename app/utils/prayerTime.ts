@@ -102,6 +102,32 @@ export function eventAtForTimetableTime(time24h: string, now: Date): string {
   return eventAt.toISOString()
 }
 
+/** True when today's timetable slot time has arrived (ignores bad persisted eventAt). */
+export function isTimetableSlotDue(time24h: string, nowMs = Date.now()): boolean {
+  if (time24h === "00:00") return false
+
+  const now = new Date(nowMs)
+  const [hour, minute] = time24h.split(":").map(Number)
+  const slotMin = hour * 60 + minute
+  const nowClock = now.getHours() * 60 + now.getMinutes()
+
+  if (nowClock > 12 * 60 && slotMin < nowClock) {
+    return false
+  }
+
+  const slotAt = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    hour,
+    minute,
+    0,
+    0,
+  )
+
+  return nowMs >= slotAt.getTime()
+}
+
 export function nowOrderedMinutes(
   prayers: PrayerTime[],
   now: Date,

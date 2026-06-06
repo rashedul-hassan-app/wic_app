@@ -17,6 +17,7 @@ import {
 } from "@/services/notifications/notificationService"
 import { reschedulePrayerNotifications } from "@/services/notifications/prayerNotificationScheduler"
 import {
+  DEV_BACKDATE_UPCOMING_ALERTS,
   DEV_PRAYER_MOCK_ENABLED,
   resetDevMockPrayerCache,
 } from "@/services/prayer/mockPrayerService"
@@ -67,6 +68,11 @@ export function usePrayerNotifications() {
 
     initPrayerAlertSession(todayPrayerTimes.prayers, todayPrayerTimes.date)
     syncDuePrayerAlerts(todayPrayerTimes.prayers, todayPrayerTimes.date)
+
+    // After sync so freshly-added Upcoming rows are included (every launch while flag is on).
+    if (__DEV__ && DEV_BACKDATE_UPCOMING_ALERTS) {
+      useAlertStore.getState().devBackdateUpcomingAlerts()
+    }
     // Keyed on scheduleToken so the session baseline only resets when the schedule changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduleToken])

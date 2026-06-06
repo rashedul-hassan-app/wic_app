@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { SectionList, View, TouchableOpacity, ViewStyle, TextStyle } from "react-native"
+import { AppState, SectionList, View, TouchableOpacity, ViewStyle, TextStyle } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from "@react-navigation/native"
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack"
@@ -9,9 +9,12 @@ import { Screen } from "@/components/Screen"
 import { Text } from "@/components/Text"
 import type { MainStackParamList } from "@/navigators/navigationTypes"
 import { alertInstanceKeyFromParts } from "@/services/notifications/alertEventIds"
-import { syncBadgeCount } from "@/services/notifications/notificationService"
+import {
+  clearNotificationBadge,
+  syncBadgeCount,
+} from "@/services/notifications/notificationService"
 import type { AlertEvent } from "@/stores/useAlertStore"
-import { useAlertStore } from "@/stores/useAlertStore"
+import { isAlertDue, useAlertStore } from "@/stores/useAlertStore"
 import { useAppTheme } from "@/theme/context"
 import { ThemedStyle } from "@/theme/types"
 
@@ -35,6 +38,14 @@ function sortByEventAtAsc(a: AlertEvent, b: AlertEvent) {
   return new Date(a.eventAt).getTime() - new Date(b.eventAt).getTime()
 }
 
+function displayTitle(event: AlertEvent, nowMs: number) {
+  if (!isAlertDue(event, nowMs) || !/jamaah in \d+ mins/.test(event.title)) {
+    return event.title
+  }
+
+  return event.title.replace(/jamaah in \d+ mins/, "jamaah now")
+}
+
 export function AlertsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<MainStackParamList>>()
   const route = useRoute<AlertsRoute>()
@@ -54,62 +65,64 @@ export function AlertsScreen() {
     clearAlerts()
     void syncBadgeCount()
   }, [clearAlerts])
-  const isFocusedRef = useRef(false)
-
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(timer)
   }, [])
 
-  const markReadIfNeeded = useCallback(() => {
+  const onEnterAlerts = useCallback(() => {
+    useAlertStore.getState().markAllAsRead()
+    void clearNotificationBadge()
+  }, [])
+
+  const onLeaveAlerts = useCallback(() => {
     const store = useAlertStore.getState()
-    if (store.events.some((event) => !event.read)) {
-      store.markAllAsRead()
-      void syncBadgeCount()
-    }
+    // Catch anything added while Alerts was open (e.g. a second warning syncing after enter).
+    store.markAllAsRead()
+    store.acknowledgeAllAlerts()
+    void clearNotificationBadge()
   }, [])
 
   useFocusEffect(
     useCallback(() => {
-      isFocusedRef.current = true
-      markReadIfNeeded()
+      onEnterAlerts()
 
       return () => {
-        isFocusedRef.current = false
+        onLeaveAlerts()
       }
-    }, [markReadIfNeeded]),
+    }, [onEnterAlerts, onLeaveAlerts]),
   )
 
   useEffect(() => {
-    if (isFocusedRef.current) markReadIfNeeded()
-  }, [events, markReadIfNeeded])
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "background") {
+        onLeaveAlerts()
+      }
+    })
+
+    return () => subscription.remove()
+  }, [onLeaveAlerts])
 
   const highlightKey = highlightEventId ? alertInstanceKeyFromParts(highlightEventId, "") : null
 
   const sections = useMemo(() => {
     const upcoming = events
-      .filter((event) => new Date(event.eventAt).getTime() > now)
+      .filter((event) => !isAlertDue(event, now))
       .sort(sortByEventAtAsc)
 
     const newAlerts = events
-      .filter((event) => !event.read && new Date(event.eventAt).getTime() <= now)
+      .filter((event) => isAlertDue(event, now) && !event.acknowledged)
       .sort(sortByEventAtDesc)
 
     const recent = events
       .filter(
-        (event) =>
-          event.read &&
-          new Date(event.eventAt).getTime() <= now &&
-          isToday(event.eventAt),
+        (event) => event.acknowledged && isAlertDue(event, now) && isToday(event.eventAt),
       )
       .sort(sortByEventAtDesc)
 
     const older = events
       .filter(
-        (event) =>
-          event.read &&
-          new Date(event.eventAt).getTime() <= now &&
-          !isToday(event.eventAt),
+        (event) => event.acknowledged && isAlertDue(event, now) && !isToday(event.eventAt),
       )
       .sort(sortByEventAtDesc)
 
@@ -223,7 +236,7 @@ export function AlertsScreen() {
               </View>
               <View style={themed($bar)} />
               <View style={themed($itemContent)}>
-                <Text weight="medium">{item.title}</Text>
+                <Text weight="medium">{displayTitle(item, now)}</Text>
                 <Text style={themed($time)}>{item.time}</Text>
               </View>
             </View>
