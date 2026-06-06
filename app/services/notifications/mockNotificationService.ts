@@ -9,7 +9,8 @@ function formatLocalMockTimestamp(date: Date) {
   const timezoneOffsetMs = date.getTimezoneOffset() * 60 * 1000
   return new Date(date.getTime() - timezoneOffsetMs).toISOString().slice(0, 19)
 }
-// Offsets keep dynamic demo notifications ordered while still appearing newer 
+
+// Offsets keep dynamic demo notifications ordered while still appearing newer than fixed mocks.
 function getCurrentLocalMockTimestamp(offsetMinutes = 0) {
   return formatLocalMockTimestamp(new Date(Date.now() + offsetMinutes * 60 * 1000))
 }
@@ -20,24 +21,15 @@ const MOCK_NOTIFICATIONS: AppNotification[] = [
     title: "Late night prayer reminder",
     message: "The mosque will remain open tonight for extra time after Isha.",
     type: "prayer",
-    // Offsets keep dynamic demo notifications ordered while still appearing newer than fixed mocks.
     createdAt: getCurrentLocalMockTimestamp(2),
     data: { prayer: "isha" },
   },
   {
-    id: "late_night_prayer",
-    title: "Late night prayer reminder",
-    message: "The mosque will remain open tonight for extra worship after Isha.",
-    type: "prayer",
-    createdAt: getCurrentLocalMockTimestamp(1),
-    data: { prayer: "isha" },
-  },
-  {
-    id: "class_update",
+    id: "quran_class_update",
     title: "Qur'an class update",
     message: "Tonight's Qur'an class will begin 15 minutes after Isha Jamaah.",
     type: "announcement",
-    createdAt: getCurrentLocalMockTimestamp(0),
+    createdAt: getCurrentLocalMockTimestamp(1),
     data: { screen: "Announcements" },
   },
   {
