@@ -1,7 +1,7 @@
 import { FC } from "react"
 import { Share, TouchableOpacity, View, ViewStyle, TextStyle } from "react-native"
-import { NavigationProp, useNavigation } from "@react-navigation/native"
 import { Ionicons } from "@expo/vector-icons"
+import { NavigationProp, useNavigation } from "@react-navigation/native"
 
 import { Screen } from "@/components/Screen"
 import { Text } from "@/components/Text"
@@ -10,7 +10,10 @@ import { useAppTheme } from "@/theme/context"
 import type { ThemedStyle } from "@/theme/types"
 
 export const MoreScreen: FC = () => {
-  const { themed, theme: { colors } } = useAppTheme()
+  const {
+    themed,
+    theme: { colors },
+  } = useAppTheme()
   const navigation = useNavigation<NavigationProp<AppStackParamList>>()
 
   const handleShareApp = async () => {
@@ -31,21 +34,14 @@ export const MoreScreen: FC = () => {
       systemBarStyle="light"
     >
       <View style={themed($header)}>
-        <Text style={themed($headerTitle)} weight="bold">More</Text>
+        <Text style={themed($headerTitle)} weight="bold">
+          More
+        </Text>
       </View>
 
       <View style={themed($section)}>
-        <SettingsRow
-          icon="share-social-outline"
-          label="Share App"
-          onPress={handleShareApp}
-        />
-        <SettingsRow
-          icon="shield-outline"
-          label="Admin Login"
-          onPress={handleAdminLogin}
-          isLast
-        />
+        <SettingsRow icon="share-social-outline" label="Share App" onPress={handleShareApp} />
+        <SettingsRow icon="shield-outline" label="Admin Login" onPress={handleAdminLogin} isLast />
       </View>
 
       <Text style={themed($footer)}>Version 1.0.0 • Powered by La Rayba™</Text>
@@ -61,7 +57,10 @@ interface SettingsRowProps {
 }
 
 function SettingsRow({ icon, label, onPress, isLast = false }: SettingsRowProps) {
-  const { themed, theme: { colors } } = useAppTheme()
+  const {
+    themed,
+    theme: { colors },
+  } = useAppTheme()
 
   return (
     <TouchableOpacity
@@ -72,7 +71,9 @@ function SettingsRow({ icon, label, onPress, isLast = false }: SettingsRowProps)
       <View style={themed($rowIcon)}>
         <Ionicons name={icon} size={20} color={colors.tint} />
       </View>
-      <Text style={themed($rowLabel)} weight="medium">{label}</Text>
+      <Text style={themed($rowLabel)} weight="medium">
+        {label}
+      </Text>
       <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
     </TouchableOpacity>
   )

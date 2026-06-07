@@ -24,22 +24,12 @@ export function JumuahTable({ jumuah }: JumuahTableProps) {
       </View>
 
       {jumuah.map((item, index) => (
-        <View
-          key={item.id}
-          style={[
-            themed($row),
-            index < jumuah.length - 1 && themed($rowBorder),
-          ]}
-        >
+        <View key={item.id} style={[themed($row), index < jumuah.length - 1 && themed($rowBorder)]}>
           <Text style={[$nameCellText, $cellText]} weight="medium">
             {item.label}
           </Text>
-          <Text style={[themed($timeCell), $cellText]}>
-            {formatPrayerTime(item.khutbah)}
-          </Text>
-          <Text style={[themed($timeCell), $cellText]}>
-            {formatPrayerTime(item.jamaah)}
-          </Text>
+          <Text style={[themed($timeCell), $cellText]}>{formatPrayerTime(item.khutbah)}</Text>
+          <Text style={[themed($timeCell), $cellText]}>{formatPrayerTime(item.jamaah)}</Text>
         </View>
       ))}
     </View>

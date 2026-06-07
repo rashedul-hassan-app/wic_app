@@ -51,7 +51,10 @@ interface PrayerRowProps {
 }
 
 function PrayerRow({ prayer, isActive, countdownLabel, isLast }: PrayerRowProps) {
-  const { themed, theme: { colors } } = useAppTheme()
+  const {
+    themed,
+    theme: { colors },
+  } = useAppTheme()
 
   const rowStyle = [
     themed($row),

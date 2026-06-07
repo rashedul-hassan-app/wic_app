@@ -8,7 +8,10 @@ import { useAppTheme } from "@/theme/context"
 import type { ThemedStyle } from "@/theme/types"
 
 export const MosqueScreen: FC = () => {
-  const { themed, theme: { colors } } = useAppTheme()
+  const {
+    themed,
+    theme: { colors },
+  } = useAppTheme()
 
   return (
     <Screen
@@ -18,12 +21,16 @@ export const MosqueScreen: FC = () => {
       systemBarStyle="light"
     >
       <View style={themed($header)}>
-        <Text style={themed($headerTitle)} weight="bold">Mosque</Text>
+        <Text style={themed($headerTitle)} weight="bold">
+          Mosque
+        </Text>
       </View>
 
       <View style={themed($emptyState)}>
         <Ionicons name="business-outline" size={48} color={colors.tintInactive} />
-        <Text style={themed($emptyTitle)} weight="semiBold">Coming Soon</Text>
+        <Text style={themed($emptyTitle)} weight="semiBold">
+          Coming Soon
+        </Text>
         <Text style={themed($emptySubtitle)}>
           Mosque information, announcements, and events will appear here.
         </Text>

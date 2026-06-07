@@ -26,10 +26,7 @@ function formatCountdown(totalMinutes: number): string {
   return `${m}m`
 }
 
-function findNextJamaah(
-  prayers: PrayerTime[],
-  nowMin: number,
-): CurrentPrayerInfo["nextJamaah"] {
+function findNextJamaah(prayers: PrayerTime[], nowMin: number): CurrentPrayerInfo["nextJamaah"] {
   // Search same day first
   for (const prayer of prayers) {
     if (!prayer.jamaah) continue
@@ -89,9 +86,7 @@ function compute(prayers: PrayerTime[], now: Date): CurrentPrayerInfo | null {
 }
 
 export function useCurrentPrayer(prayers: PrayerTime[]): CurrentPrayerInfo | null {
-  const [info, setInfo] = useState<CurrentPrayerInfo | null>(() =>
-    compute(prayers, new Date()),
-  )
+  const [info, setInfo] = useState<CurrentPrayerInfo | null>(() => compute(prayers, new Date()))
 
   useEffect(() => {
     if (!prayers.length) return

@@ -11,9 +11,9 @@ export interface UsePrayerTimesResult {
 }
 
 export function usePrayerTimes(date: string): UsePrayerTimesResult {
-  const [data, setData]       = useState<DayPrayerTimes | null>(null)
+  const [data, setData] = useState<DayPrayerTimes | null>(null)
   const [isLoading, setLoading] = useState(true)
-  const [error, setError]     = useState<Error | null>(null)
+  const [error, setError] = useState<Error | null>(null)
 
   const fetch = useCallback(async () => {
     setLoading(true)
