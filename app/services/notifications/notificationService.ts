@@ -4,7 +4,10 @@ import * as Notifications from "expo-notifications"
 import { CommonActions } from "@react-navigation/native"
 
 import { ensureTimetableOnLaunch, navigationRef } from "@/navigators/navigationUtilities"
-import { normalizeAlertEvent } from "@/services/notifications/alertEventIds"
+import {
+  alertInstanceKey,
+  normalizeAlertEvent,
+} from "@/services/notifications/alertEventIds"
 import type { AlertEvent } from "@/stores/useAlertStore"
 import { countUnreadAlerts, useAlertStore } from "@/stores/useAlertStore"
 import { loadString, saveString } from "@/utils/storage"
@@ -246,17 +249,68 @@ export async function handleNavigationContainerReady() {
   ensureTimetableOnLaunch()
 }
 
-export async function syncBadgeCount() {
+let badgeSyncChain: Promise<void> = Promise.resolve()
+
+async function dismissReadAndroidTrayNotifications() {
+  const { events } = useAlertStore.getState()
+  const unreadKeys = new Set(
+    events.filter((event) => !event.read).map((event) => alertInstanceKey(event)),
+  )
+
+  const presented = await Notifications.getPresentedNotificationsAsync()
+
+  await Promise.all(
+    presented.map(async (notification) => {
+      const event = eventFromNotificationData(notification.request.content.data)
+      if (!event) return
+
+      const key = alertInstanceKey(normalizeAlertEvent(event))
+      if (unreadKeys.has(key)) return
+
+      const id = notification.request.identifier
+      if (!id) return
+
+      try {
+        await Notifications.dismissNotificationAsync(id)
+      } catch {
+        // Tray item may already be gone on some launchers.
+      }
+    }),
+  )
+}
+
+/** Apply OS icon badge from in-app unread count (bell is source of truth). */
+async function applyOsBadgeFromStore() {
   if (!isNativePlatform()) return
 
   const { events } = useAlertStore.getState()
-  await Notifications.setBadgeCountAsync(countUnreadAlerts(events))
+  const count = countUnreadAlerts(events)
+
+  if (Platform.OS === "android") {
+    if (count === 0) {
+      await Notifications.dismissAllNotificationsAsync()
+      await Notifications.setBadgeCountAsync(0)
+      return
+    }
+
+    await dismissReadAndroidTrayNotifications()
+  }
+
+  await Notifications.setBadgeCountAsync(count)
 }
 
-/** Clear the OS icon badge when the user opens Alerts. */
-export async function clearNotificationBadge() {
-  if (!isNativePlatform()) return
-  await Notifications.setBadgeCountAsync(0)
+/** Serialized so rapid alert adds cannot apply an older count after a newer one. */
+export function syncBadgeCount() {
+  badgeSyncChain = badgeSyncChain
+    .catch(() => undefined)
+    .then(() => applyOsBadgeFromStore())
+
+  return badgeSyncChain
+}
+
+/** @deprecated Prefer syncBadgeCount — OS badge always mirrors in-app unread count. */
+export function clearNotificationBadge() {
+  return syncBadgeCount()
 }
 
 function getNotificationListenerRegistry(): NotificationListenerRegistry {

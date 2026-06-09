@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 
 import type { DayPrayerTimes } from "@/models/prayer.types"
-import { mockPrayerService } from "@/services/prayer/mockPrayerService"
+import { mockPrayerService, subscribeVenusRestart } from "@/services/prayer/mockPrayerService"
 
 export interface UsePrayerTimesResult {
   data: DayPrayerTimes | null
@@ -31,6 +31,8 @@ export function usePrayerTimes(date: string): UsePrayerTimesResult {
   useEffect(() => {
     fetch()
   }, [fetch])
+
+  useEffect(() => subscribeVenusRestart(fetch), [fetch])
 
   return { data, isLoading, error, refresh: fetch }
 }

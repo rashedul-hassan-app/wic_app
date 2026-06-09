@@ -5,7 +5,8 @@ import {
   migratePersistedAlertEvents,
   normalizeAlertEvent,
 } from "@/services/notifications/alertEventIds"
-import { isTimetableSlotDue } from "@/utils/prayerTime"
+import type { PrayerTime } from "@/models/prayer.types"
+import { isTimetableSlotDue, isTimetableSlotPassed } from "@/utils/prayerTime"
 import { load, save } from "@/utils/storage"
 
 export type AlertEvent = {
@@ -34,8 +35,17 @@ type AlertState = {
   devBackdateUpcomingAlerts: () => void
 }
 
-export function isAlertDue(event: AlertEvent, nowMs = Date.now()) {
+export function isAlertDue(
+  event: AlertEvent,
+  nowMs = Date.now(),
+  prayers?: PrayerTime[],
+) {
   if (new Date(event.eventAt).getTime() <= nowMs) return true
+
+  if (prayers?.length) {
+    return isTimetableSlotPassed(prayers, event.time, new Date(nowMs))
+  }
+
   return isTimetableSlotDue(event.time, nowMs)
 }
 
@@ -47,19 +57,32 @@ export function countUnreadAlerts(events: AlertEvent[]) {
 const ALERT_EVENTS_STORAGE_KEY = "ALERT_EVENTS"
 const JUMUAH_STORAGE_KEY = "JUMUAH_LAST_SHOWN"
 
-const loadedEvents = load<AlertEvent[]>(ALERT_EVENTS_STORAGE_KEY) ?? []
-const persistedEvents = migratePersistedAlertEvents(loadedEvents).map((event) => ({
-  ...event,
-  acknowledged: event.acknowledged ?? (event.read ?? false),
-}))
+function loadPersistedAlertState(): { events: AlertEvent[]; jumuahLastShown: string | null } {
+  try {
+    const loadedEvents = load<AlertEvent[]>(ALERT_EVENTS_STORAGE_KEY) ?? []
+    const persistedEvents = migratePersistedAlertEvents(loadedEvents).map((event) => ({
+      ...event,
+      acknowledged: event.acknowledged ?? (event.read ?? false),
+    }))
 
-const migratedIds = persistedEvents.map((event) => event.id).join("|")
-const loadedIds = loadedEvents.map((event) => event.id).join("|")
+    const migratedIds = persistedEvents.map((event) => event.id).join("|")
+    const loadedIds = loadedEvents.map((event) => event.id).join("|")
 
-if (migratedIds !== loadedIds) {
-  save(ALERT_EVENTS_STORAGE_KEY, persistedEvents)
+    if (migratedIds !== loadedIds) {
+      save(ALERT_EVENTS_STORAGE_KEY, persistedEvents)
+    }
+
+    return {
+      events: persistedEvents,
+      jumuahLastShown: load<string | null>(JUMUAH_STORAGE_KEY) ?? null,
+    }
+  } catch (error) {
+    console.error("[useAlertStore] Failed to load persisted alerts", error)
+    return { events: [], jumuahLastShown: null }
+  }
 }
-const persistedJumuah = load<string | null>(JUMUAH_STORAGE_KEY) ?? null
+
+const { events: persistedEvents, jumuahLastShown: persistedJumuah } = loadPersistedAlertState()
 
 function persistEvents(events: AlertEvent[]) {
   save(ALERT_EVENTS_STORAGE_KEY, events)

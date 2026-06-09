@@ -1,6 +1,18 @@
 import { MMKV } from "react-native-mmkv"
 
-export const storage = new MMKV()
+function createStorage() {
+  try {
+    return new MMKV()
+  } catch (error) {
+    console.error(
+      "[storage] MMKV failed to initialize. Rebuild the native app: npx expo run:android --device",
+      error,
+    )
+    throw error
+  }
+}
+
+export const storage = createStorage()
 
 /**
  * Loads a string from storage.

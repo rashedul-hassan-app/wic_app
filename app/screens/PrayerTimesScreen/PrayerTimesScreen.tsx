@@ -12,7 +12,7 @@ import type { MainTabScreenProps } from "@/navigators/navigationTypes"
 import { useAppTheme } from "@/theme/context"
 import type { ThemedStyle } from "@/theme/types"
 
-import { DEV_PRAYER_MOCK_ENABLED } from "@/services/prayer/mockPrayerService"
+import { restartVenusTest, VENUS_SHIFTED_TIMETABLE } from "@/services/prayer/mockPrayerService"
 import { getAnnouncementBannerText } from "@/utils/announcementBanner"
 
 import { AnnouncementBanner } from "./components/AnnouncementBanner"
@@ -64,14 +64,6 @@ export const PrayerTimesScreen: FC<MainTabScreenProps<"Timetable">> = ({ navigat
 
       {bannerText && <AnnouncementBanner text={bannerText} />}
 
-      {DEV_PRAYER_MOCK_ENABLED && isToday && (
-        <Text style={themed($devMockStatus)}>
-          {data?.announcement?.startsWith("TEST")
-            ? `Test timetable active · Maghrib ${data.prayers.find((p) => p.name === "maghrib")?.begins}`
-            : `Live timetable loaded · mock=${String(DEV_PRAYER_MOCK_ENABLED)} · reload app`}
-        </Text>
-      )}
-
       <PrayerInfoCards
         currentPrayer={currentPrayer}
         suhoorEnds={todayData?.prayers[0]?.begins ?? "03:47"}
@@ -98,6 +90,12 @@ export const PrayerTimesScreen: FC<MainTabScreenProps<"Timetable">> = ({ navigat
           {data.jumuah.length > 0 && <JumuahTable jumuah={data.jumuah} />}
         </>
       ) : null}
+
+      {VENUS_SHIFTED_TIMETABLE && isToday && (
+        <TouchableOpacity style={themed($venusButton)} onPress={restartVenusTest}>
+          <Text style={themed($venusButtonText)}>Restart Venus</Text>
+        </TouchableOpacity>
+      )}
 
       <Text style={themed($footer)}>Powered by La Rayba™</Text>
     </Screen>
@@ -180,17 +178,25 @@ const $iconWrapper: ThemedStyle<ViewStyle> = () => ({
   alignItems: "center",
 })
 
-const $devMockStatus: ThemedStyle<TextStyle> = ({ colors, spacing }) => ({
-  textAlign: "center",
-  color: colors.tint,
-  fontSize: 12,
-  marginBottom: spacing.xs,
-  paddingHorizontal: spacing.md,
-})
-
 const $loadingContainer: ThemedStyle<ViewStyle> = ({ spacing }) => ({
   paddingVertical: spacing.xl,
   alignItems: "center",
+})
+
+const $venusButton: ThemedStyle<ViewStyle> = ({ colors, spacing }) => ({
+  alignSelf: "center",
+  marginTop: spacing.md,
+  borderWidth: 1,
+  borderColor: colors.tint,
+  borderRadius: 8,
+  paddingHorizontal: spacing.md,
+  paddingVertical: spacing.xs,
+})
+
+const $venusButtonText: ThemedStyle<TextStyle> = ({ colors }) => ({
+  color: colors.tint,
+  fontSize: 13,
+  fontWeight: "600",
 })
 
 const $footer: ThemedStyle<TextStyle> = ({ colors, spacing }) => ({

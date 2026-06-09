@@ -79,10 +79,12 @@ export function prayerJamaahMinutes(prayers: PrayerTime[], index: number): numbe
 }
 
 /** ISO timestamp for a timetable HH:mm on today's row (handles post-midnight slots). */
-export function eventAtForTimetableTime(time24h: string, now: Date): string {
+export function eventAtForTimetableTime(
+  time24h: string,
+  now: Date,
+  prayers?: PrayerTime[],
+): string {
   const [hour, minute] = time24h.split(":").map(Number)
-  const slotMin = hour * 60 + minute
-  const nowClock = now.getHours() * 60 + now.getMinutes()
 
   const eventAt = new Date(
     now.getFullYear(),
@@ -94,15 +96,57 @@ export function eventAtForTimetableTime(time24h: string, now: Date): string {
     0,
   )
 
-  // e.g. 00:30 jamaah on today's row while it's still the evening
-  if (nowClock > 12 * 60 && slotMin < nowClock) {
+  if (prayers?.length) {
+    for (let i = 0; i < prayers.length; i++) {
+      if (prayers[i].begins === time24h) {
+        if (prayerBeginsMinutes(prayers, i) >= 1440) eventAt.setDate(eventAt.getDate() + 1)
+        return eventAt.toISOString()
+      }
+
+      if (prayers[i].jamaah === time24h) {
+        const jamaahMin = prayerJamaahMinutes(prayers, i)
+        if (jamaahMin !== null && jamaahMin >= 1440) eventAt.setDate(eventAt.getDate() + 1)
+        return eventAt.toISOString()
+      }
+    }
+  }
+
+  const slotMin = hour * 60 + minute
+  const nowClock = now.getHours() * 60 + now.getMinutes()
+
+  // Post-midnight slot on today's row while it's still the evening
+  if (nowClock > 12 * 60 && slotMin < 12 * 60) {
     eventAt.setDate(eventAt.getDate() + 1)
   }
 
   return eventAt.toISOString()
 }
 
-/** True when today's timetable slot time has arrived (ignores bad persisted eventAt). */
+/** True when a begins/jamaah slot on today's timetable row has passed (ordered timeline). */
+export function isTimetableSlotPassed(
+  prayers: PrayerTime[],
+  time24h: string,
+  now: Date = new Date(),
+): boolean {
+  if (!prayers.length || time24h === "00:00") return false
+
+  const nowMin = nowOrderedMinutes(prayers, now, true)
+
+  for (let i = 0; i < prayers.length; i++) {
+    if (prayers[i].begins === time24h) {
+      return nowMin >= prayerBeginsMinutes(prayers, i)
+    }
+
+    if (prayers[i].jamaah === time24h) {
+      const jamaahMin = prayerJamaahMinutes(prayers, i)
+      return jamaahMin !== null && nowMin >= jamaahMin
+    }
+  }
+
+  return false
+}
+
+/** Fallback when today's timetable is unavailable — wall-clock compare on today's date. */
 export function isTimetableSlotDue(time24h: string, nowMs = Date.now()): boolean {
   if (time24h === "00:00") return false
 
@@ -110,10 +154,6 @@ export function isTimetableSlotDue(time24h: string, nowMs = Date.now()): boolean
   const [hour, minute] = time24h.split(":").map(Number)
   const slotMin = hour * 60 + minute
   const nowClock = now.getHours() * 60 + now.getMinutes()
-
-  if (nowClock > 12 * 60 && slotMin < nowClock) {
-    return false
-  }
 
   const slotAt = new Date(
     now.getFullYear(),
@@ -124,6 +164,11 @@ export function isTimetableSlotDue(time24h: string, nowMs = Date.now()): boolean
     0,
     0,
   )
+
+  // Post-midnight slot on today's row while it's still the evening
+  if (nowClock > 12 * 60 && slotMin < 12 * 60) {
+    return false
+  }
 
   return nowMs >= slotAt.getTime()
 }

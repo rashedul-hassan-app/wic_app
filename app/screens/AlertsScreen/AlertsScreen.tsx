@@ -1,24 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AppState, SectionList, View, TouchableOpacity, ViewStyle, TextStyle } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import { RouteProp, useFocusEffect, useNavigation, useRoute } from "@react-navigation/native"
+import { RouteProp, useFocusEffect, useIsFocused, useNavigation, useRoute } from "@react-navigation/native"
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack"
 import { format, parseISO } from "date-fns"
 
 import { Screen } from "@/components/Screen"
 import { Text } from "@/components/Text"
+import { usePrayerTimes } from "@/hooks/usePrayerTimes"
+import type { PrayerTime } from "@/models/prayer.types"
 import type { MainStackParamList } from "@/navigators/navigationTypes"
+import { syncDuePrayerAlerts } from "@/services/alerts/prayerAlertEngine"
 import { alertInstanceKeyFromParts } from "@/services/notifications/alertEventIds"
-import {
-  clearNotificationBadge,
-  syncBadgeCount,
-} from "@/services/notifications/notificationService"
+import { syncBadgeCount } from "@/services/notifications/notificationService"
 import type { AlertEvent } from "@/stores/useAlertStore"
 import { isAlertDue, useAlertStore } from "@/stores/useAlertStore"
 import { useAppTheme } from "@/theme/context"
 import { ThemedStyle } from "@/theme/types"
 
 const HEADER_HEIGHT = 48
+const NO_PRAYERS: PrayerTime[] = []
 
 type AlertsRoute = RouteProp<MainStackParamList, "Alerts">
 
@@ -38,8 +39,8 @@ function sortByEventAtAsc(a: AlertEvent, b: AlertEvent) {
   return new Date(a.eventAt).getTime() - new Date(b.eventAt).getTime()
 }
 
-function displayTitle(event: AlertEvent, nowMs: number) {
-  if (!isAlertDue(event, nowMs) || !/jamaah in \d+ mins/.test(event.title)) {
+function displayTitle(event: AlertEvent, nowMs: number, prayers?: PrayerTime[]) {
+  if (!isAlertDue(event, nowMs, prayers) || !/jamaah in \d+ mins/.test(event.title)) {
     return event.title
   }
 
@@ -51,6 +52,8 @@ export function AlertsScreen() {
   const route = useRoute<AlertsRoute>()
   const highlightEventId = route.params?.highlightEventId
   const listRef = useRef<SectionList>(null)
+  const enterSyncedRef = useRef(false)
+  const isFocused = useIsFocused()
   const [now, setNow] = useState(() => Date.now())
 
   const {
@@ -60,6 +63,12 @@ export function AlertsScreen() {
 
   const events = useAlertStore((s) => s.events)
   const clearAlerts = useAlertStore((s) => s.clear)
+  const { data: todayPrayerTimes } = usePrayerTimes(todayISO())
+  const todayPrayers = todayPrayerTimes?.prayers ?? NO_PRAYERS
+  const todayDate = todayPrayerTimes?.date ?? todayISO()
+  const prayersReady = todayPrayers.length > 0
+  const todayPrayerTimesRef = useRef(todayPrayerTimes)
+  todayPrayerTimesRef.current = todayPrayerTimes
 
   const handleClear = useCallback(() => {
     clearAlerts()
@@ -70,28 +79,48 @@ export function AlertsScreen() {
     return () => clearInterval(timer)
   }, [])
 
-  const onEnterAlerts = useCallback(() => {
+  const runEnterSync = useCallback(() => {
+    const day = todayPrayerTimesRef.current
+    if (!day?.prayers?.length || !day.date) return false
+
+    // Catch up first (e.g. from a notification tap) so mark-all-read includes every row.
+    syncDuePrayerAlerts(day.prayers, day.date)
     useAlertStore.getState().markAllAsRead()
-    void clearNotificationBadge()
+    void syncBadgeCount()
+    return true
   }, [])
 
   const onLeaveAlerts = useCallback(() => {
+    const day = todayPrayerTimesRef.current
     const store = useAlertStore.getState()
-    // Catch anything added while Alerts was open (e.g. a second warning syncing after enter).
+
+    if (day?.prayers?.length && day.date) {
+      syncDuePrayerAlerts(day.prayers, day.date)
+    }
     store.markAllAsRead()
     store.acknowledgeAllAlerts()
-    void clearNotificationBadge()
+    void syncBadgeCount()
   }, [])
 
   useFocusEffect(
     useCallback(() => {
-      onEnterAlerts()
+      enterSyncedRef.current = false
+      enterSyncedRef.current = runEnterSync()
 
       return () => {
         onLeaveAlerts()
+        enterSyncedRef.current = false
       }
-    }, [onEnterAlerts, onLeaveAlerts]),
+    }, [onLeaveAlerts, runEnterSync]),
   )
+
+  // Prayer times can load after a notification tap — run enter sync once they're ready.
+  useEffect(() => {
+    if (!isFocused || enterSyncedRef.current || !prayersReady) return
+    if (runEnterSync()) {
+      enterSyncedRef.current = true
+    }
+  }, [isFocused, prayersReady, todayDate, runEnterSync])
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
@@ -107,22 +136,24 @@ export function AlertsScreen() {
 
   const sections = useMemo(() => {
     const upcoming = events
-      .filter((event) => !isAlertDue(event, now))
+      .filter((event) => !isAlertDue(event, now, todayPrayers))
       .sort(sortByEventAtAsc)
 
     const newAlerts = events
-      .filter((event) => isAlertDue(event, now) && !event.acknowledged)
+      .filter((event) => isAlertDue(event, now, todayPrayers) && !event.acknowledged)
       .sort(sortByEventAtDesc)
 
     const recent = events
       .filter(
-        (event) => event.acknowledged && isAlertDue(event, now) && isToday(event.eventAt),
+        (event) =>
+          event.acknowledged && isAlertDue(event, now, todayPrayers) && isToday(event.eventAt),
       )
       .sort(sortByEventAtDesc)
 
     const older = events
       .filter(
-        (event) => event.acknowledged && isAlertDue(event, now) && !isToday(event.eventAt),
+        (event) =>
+          event.acknowledged && isAlertDue(event, now, todayPrayers) && !isToday(event.eventAt),
       )
       .sort(sortByEventAtDesc)
 
@@ -134,7 +165,7 @@ export function AlertsScreen() {
     if (older.length) result.push({ title: "Older", data: older })
 
     return result
-  }, [events, now])
+  }, [events, now, todayPrayers])
 
   useEffect(() => {
     if (!highlightEventId) return
@@ -236,7 +267,7 @@ export function AlertsScreen() {
               </View>
               <View style={themed($bar)} />
               <View style={themed($itemContent)}>
-                <Text weight="medium">{displayTitle(item, now)}</Text>
+                <Text weight="medium">{displayTitle(item, now, todayPrayers)}</Text>
                 <Text style={themed($time)}>{item.time}</Text>
               </View>
             </View>

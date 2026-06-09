@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useMemo } from "react"
 import { AppState } from "react-native"
 import { format } from "date-fns"
 
@@ -7,7 +7,7 @@ import { usePrayerAlertWatcher } from "@/hooks/usePrayerAlertWatcher"
 import { usePrayerTimes } from "@/hooks/usePrayerTimes"
 import {
   initPrayerAlertSession,
-  resetPrayerAlertSession,
+  persistPrayerAlertSessionWatch,
   syncDuePrayerAlerts,
 } from "@/services/alerts/prayerAlertEngine"
 import {
@@ -19,6 +19,7 @@ import { reschedulePrayerNotifications } from "@/services/notifications/prayerNo
 import {
   DEV_BACKDATE_UPCOMING_ALERTS,
   DEV_PRAYER_MOCK_ENABLED,
+  VENUS_SHIFTED_TIMETABLE,
   resetDevMockPrayerCache,
 } from "@/services/prayer/mockPrayerService"
 import { useAlertStore } from "@/stores/useAlertStore"
@@ -27,18 +28,8 @@ function todayISO() {
   return format(new Date(), "yyyy-MM-dd")
 }
 
-let alertSessionBootstrapped = false
 let devMockSessionBootstrapped = false
-
 export function usePrayerNotifications() {
-  const bootstrapped = useRef(false)
-
-  if (!bootstrapped.current && !alertSessionBootstrapped) {
-    bootstrapped.current = true
-    alertSessionBootstrapped = true
-    resetPrayerAlertSession()
-  }
-
   if (DEV_PRAYER_MOCK_ENABLED && !devMockSessionBootstrapped) {
     devMockSessionBootstrapped = true
     resetDevMockPrayerCache()
@@ -52,9 +43,17 @@ export function usePrayerNotifications() {
     if (!todayPrayerTimes) return null
 
     const maghrib = todayPrayerTimes.prayers.find((prayer) => prayer.name === "maghrib")
-    return DEV_PRAYER_MOCK_ENABLED
-      ? `${todayPrayerTimes.date}:${maghrib?.begins}:${maghrib?.jamaah}`
-      : todayPrayerTimes.date
+    const dhuhr = todayPrayerTimes.prayers.find((prayer) => prayer.name === "dhuhr")
+
+    if (DEV_PRAYER_MOCK_ENABLED) {
+      return `${todayPrayerTimes.date}:${maghrib?.begins}:${maghrib?.jamaah}`
+    }
+
+    if (VENUS_SHIFTED_TIMETABLE) {
+      return `${todayPrayerTimes.date}:${dhuhr?.begins}:${dhuhr?.jamaah}`
+    }
+
+    return todayPrayerTimes.date
   }, [todayPrayerTimes])
 
   usePrayerAlertWatcher(
@@ -77,14 +76,21 @@ export function usePrayerNotifications() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduleToken])
 
-  // Catch up in-app alerts and refresh OS schedule when returning from background.
+  // Persist watch on background; catch up alerts + refresh OS schedule when active.
   useEffect(() => {
     if (!todayPrayerTimes?.prayers.length || !todayPrayerTimes.date) return
 
     const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "background" || nextState === "inactive") {
+        persistPrayerAlertSessionWatch()
+        void syncBadgeCount()
+        return
+      }
+
       if (nextState !== "active") return
 
       syncDuePrayerAlerts(todayPrayerTimes.prayers, todayPrayerTimes.date)
+      void syncBadgeCount()
 
       void initializeNotifications().then(async (granted) => {
         if (!granted) return
