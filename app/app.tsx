@@ -11,6 +11,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller"
 import { initialWindowMetrics, SafeAreaProvider } from "react-native-safe-area-context"
 
 import { AuthProvider } from "./context/AuthContext"
+import { usePrayerNotifications } from "./hooks/usePrayerNotifications"
 import { initI18n } from "./i18n"
 import { AppNavigator } from "./navigators/AppNavigator"
 import { useNavigationPersistence } from "./navigators/navigationUtilities"
@@ -26,9 +27,15 @@ const config = {
   screens: {
     Main: {
       screens: {
-        Timetable: "",
-        Mosque: "mosque",
-        More: "more",
+        // 1. Map the outer Tabs navigator container matching your type definition
+        Tabs: {
+          screens: {
+            Timetable: "", // Root tab path
+            Mosque: "mosque",
+            More: "more",
+          },
+        },
+        Alerts: "alerts",
       },
     },
     AdminLogin: "admin/login",
@@ -44,6 +51,8 @@ export function App() {
 
   const [areFontsLoaded, fontLoadError] = useFonts(customFontsToLoad)
   const [isI18nInitialized, setIsI18nInitialized] = useState(false)
+
+  usePrayerNotifications()
 
   useEffect(() => {
     initI18n()

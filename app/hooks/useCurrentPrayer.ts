@@ -1,20 +1,29 @@
 import { useEffect, useState } from "react"
 
 import type { PrayerTime } from "@/models/prayer.types"
+import {
+  nowOrderedMinutes,
+  prayerBeginsMinutes,
+  prayerJamaahMinutes,
+  prayerTimeToMinutes,
+} from "@/utils/prayerTime"
 
 export interface CurrentPrayerInfo {
   prayer: PrayerTime
   /** Formatted countdown to next prayer, e.g. "4h 18m" */
   countdownLabel: string
+  /** Exact minutes until next prayer (for alert scheduling) */
+  minutesLeft: number
+  nextPrayer: {
+    prayer: PrayerTime
+    countdownLabel: string
+    minutesLeft: number
+  }
   nextJamaah: {
     prayer: PrayerTime
     countdownLabel: string
+    minutesLeft: number
   } | null
-}
-
-function toMinutes(time24h: string): number {
-  const [h, m] = time24h.split(":").map(Number)
-  return h * 60 + m
 }
 
 function formatCountdown(totalMinutes: number): string {
@@ -26,72 +35,88 @@ function formatCountdown(totalMinutes: number): string {
   return `${m}m`
 }
 
-function findNextJamaah(
-  prayers: PrayerTime[],
-  nowMin: number,
-): CurrentPrayerInfo["nextJamaah"] {
-  // Search same day first
-  for (const prayer of prayers) {
-    if (!prayer.jamaah) continue
-    const jamaahMin = toMinutes(prayer.jamaah)
-    if (jamaahMin > nowMin) {
+function findNextJamaah(prayers: PrayerTime[], nowMin: number): CurrentPrayerInfo["nextJamaah"] {
+  for (let i = 0; i < prayers.length; i++) {
+    const prayer = prayers[i]
+    const jamaahMin = prayerJamaahMinutes(prayers, i)
+    if (jamaahMin === null) continue
+
+    const minutesUntil = jamaahMin - nowMin
+    if (minutesUntil > 0) {
       return {
         prayer,
-        countdownLabel: formatCountdown(jamaahMin - nowMin),
+        countdownLabel: formatCountdown(minutesUntil),
+        minutesLeft: minutesUntil,
       }
     }
   }
-  // All today's jamaah times have passed — find the first one tomorrow
+
   const firstWithJamaah = prayers.find((p) => p.jamaah !== null)
   if (!firstWithJamaah?.jamaah) return null
 
-  const jamaahMin = toMinutes(firstWithJamaah.jamaah)
+  const jamaahMin = prayerTimeToMinutes(firstWithJamaah.jamaah)
+  const minutesUntilTomorrow = 1440 - nowMin + jamaahMin
+
   return {
     prayer: firstWithJamaah,
-    countdownLabel: formatCountdown(1440 - nowMin + jamaahMin),
+    countdownLabel: formatCountdown(minutesUntilTomorrow),
+    minutesLeft: minutesUntilTomorrow,
   }
 }
 
 function compute(prayers: PrayerTime[], now: Date): CurrentPrayerInfo | null {
   if (!prayers.length) return null
 
-  const nowMin = now.getHours() * 60 + now.getMinutes()
+  const nowMin = nowOrderedMinutes(prayers, now)
+  const beginsMins = prayers.map((_, i) => prayerBeginsMinutes(prayers, i))
 
-  // Find the last prayer whose begins time is ≤ now
   let idx = -1
   for (let i = 0; i < prayers.length; i++) {
-    if (toMinutes(prayers[i].begins) <= nowMin) idx = i
+    if (beginsMins[i] <= nowMin) idx = i
   }
 
   const nextJamaah = findNextJamaah(prayers, nowMin)
 
   if (idx === -1) {
-    // Before Fajr — we're in yesterday's Isha window
-    const fajrMin = toMinutes(prayers[0].begins)
+    const fajrMin = beginsMins[0]
+    const minutesUntilFajr = fajrMin - nowMin
+
     return {
       prayer: prayers[prayers.length - 1],
-      countdownLabel: formatCountdown(fajrMin - nowMin),
+      countdownLabel: formatCountdown(minutesUntilFajr),
+      nextPrayer: {
+        prayer: prayers[0],
+        countdownLabel: formatCountdown(minutesUntilFajr),
+        minutesLeft: minutesUntilFajr,
+      },
       nextJamaah,
+      minutesLeft: minutesUntilFajr,
     }
   }
 
   const nextIdx = idx + 1
   const minutesUntilNext =
     nextIdx < prayers.length
-      ? toMinutes(prayers[nextIdx].begins) - nowMin
-      : 1440 - nowMin + toMinutes(prayers[0].begins) // wrap to tomorrow's Fajr
+      ? beginsMins[nextIdx] - nowMin
+      : 1440 - nowMin + beginsMins[0]
+
+  const nextPrayer = nextIdx < prayers.length ? prayers[nextIdx] : prayers[0]
 
   return {
     prayer: prayers[idx],
     countdownLabel: formatCountdown(minutesUntilNext),
+    nextPrayer: {
+      prayer: nextPrayer,
+      countdownLabel: formatCountdown(minutesUntilNext),
+      minutesLeft: minutesUntilNext,
+    },
     nextJamaah,
+    minutesLeft: minutesUntilNext,
   }
 }
 
 export function useCurrentPrayer(prayers: PrayerTime[]): CurrentPrayerInfo | null {
-  const [info, setInfo] = useState<CurrentPrayerInfo | null>(() =>
-    compute(prayers, new Date()),
-  )
+  const [info, setInfo] = useState<CurrentPrayerInfo | null>(() => compute(prayers, new Date()))
 
   useEffect(() => {
     if (!prayers.length) return
@@ -99,7 +124,8 @@ export function useCurrentPrayer(prayers: PrayerTime[]): CurrentPrayerInfo | nul
     const update = () => setInfo(compute(prayers, new Date()))
     update()
 
-    const id = setInterval(update, 60_000)
+    const tickMs = 1_000
+    const id = setInterval(update, tickMs)
     return () => clearInterval(id)
   }, [prayers])
 

@@ -15,21 +15,22 @@ const Tab = createBottomTabNavigator<MainTabParamList>()
 
 type IoniconName = React.ComponentProps<typeof Ionicons>["name"]
 
-const TAB_ICONS: Record<
-  keyof MainTabParamList,
-  { active: IoniconName; inactive: IoniconName }
-> = {
-  Timetable: { active: "time",               inactive: "time-outline" },
-  Mosque:    { active: "business",           inactive: "business-outline" },
-  More:      { active: "ellipsis-horizontal", inactive: "ellipsis-horizontal-outline" },
+const TAB_ICONS: Record<keyof MainTabParamList, { active: IoniconName; inactive: IoniconName }> = {
+  Timetable: { active: "time", inactive: "time-outline" },
+  Mosque: { active: "business", inactive: "business-outline" },
+  More: { active: "ellipsis-horizontal", inactive: "ellipsis-horizontal-outline" },
 }
 
 export function MainTabNavigator() {
   const { bottom } = useSafeAreaInsets()
-  const { themed, theme: { colors } } = useAppTheme()
+  const {
+    themed,
+    theme: { colors },
+  } = useAppTheme()
 
   return (
     <Tab.Navigator
+      initialRouteName="Timetable"
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { BackHandler, Linking, Platform } from "react-native"
 import {
+  CommonActions,
   NavigationState,
   PartialState,
   createNavigationContainerRef,
@@ -32,6 +33,56 @@ export const navigationRef = createNavigationContainerRef<AppStackParamList>()
  * @param {NavigationState | PartialState<NavigationState>} state - The navigation state to traverse.
  * @returns {string} - The name of the current screen.
  */
+function getMainStackState(state: NavigationState | PartialState<NavigationState>) {
+  const mainRoute = state.routes?.find((route) => route.name === "Main")
+  return mainRoute?.state as NavigationState | PartialState<NavigationState> | undefined
+}
+
+/**
+ * Always remove the Alerts route from the Main stack so launches (icon or restored
+ * state) land on the Timetable. Works regardless of `index` being defined, which the
+ * previous index-based check missed for older/partial persisted state.
+ */
+function sanitizeNavigationStateForPersistence(
+  state: NavigationState | PartialState<NavigationState>,
+): NavigationState | PartialState<NavigationState> {
+  const mainState = getMainStackState(state)
+  if (!mainState?.routes?.length) return state
+
+  const hasAlerts = mainState.routes.some((route) => route.name === "Alerts")
+  if (!hasAlerts) return state
+
+  const remaining = mainState.routes.filter((route) => route.name !== "Alerts")
+  const routes = remaining.length ? remaining : [{ name: "Tabs" }]
+  const tabsIndex = routes.findIndex((route) => route.name === "Tabs")
+
+  const nextState = {
+    ...state,
+    routes: state.routes?.map((route) =>
+      route.name === "Main"
+        ? {
+            ...route,
+            state: {
+              ...mainState,
+              routes,
+              index: tabsIndex >= 0 ? tabsIndex : routes.length - 1,
+            },
+          }
+        : route,
+    ),
+  }
+
+  return nextState as NavigationState | PartialState<NavigationState>
+}
+
+function resolvesToAlerts(state: NavigationState | PartialState<NavigationState>): boolean {
+  try {
+    return getActiveRouteName(state as NavigationState) === "Alerts"
+  } catch {
+    return false
+  }
+}
+
 export function getActiveRouteName(state: NavigationState | PartialState<NavigationState>): string {
   const route = state.routes[state.index ?? 0]
 
@@ -140,8 +191,8 @@ export function useNavigationPersistence(storage: Storage, persistenceKey: strin
       // Save the current route name for later comparison
       routeNameRef.current = currentRouteName as keyof AppStackParamList
 
-      // Persist state to storage
-      storage.save(persistenceKey, state)
+      // Never persist the Alerts screen — icon launches should always open Timetable.
+      storage.save(persistenceKey, sanitizeNavigationStateForPersistence(state))
     }
   }
 
@@ -152,7 +203,21 @@ export function useNavigationPersistence(storage: Storage, persistenceKey: strin
       // Only restore the state if app has not started from a deep link
       if (!initialUrl) {
         const state = (await storage.load(persistenceKey)) as NavigationProps["initialState"] | null
-        if (state) setInitialNavigationState(state)
+        if (state) {
+          // Strip any saved Alerts route so icon launches always reopen Timetable.
+          const cleaned = sanitizeNavigationStateForPersistence(state)
+
+          // If old/corrupt state still resolves to Alerts, discard it → fresh Timetable.
+          const nextState = resolvesToAlerts(cleaned) ? undefined : cleaned
+          setInitialNavigationState(nextState)
+
+          // Heal storage so the next icon launch does not restore Alerts again.
+          if (nextState) {
+            storage.save(persistenceKey, nextState)
+          } else {
+            storage.remove(persistenceKey)
+          }
+        }
       }
     } finally {
       if (isMounted()) setIsRestored(true)
@@ -205,4 +270,30 @@ export function resetRoot(
   if (navigationRef.isReady()) {
     navigationRef.resetRoot(state)
   }
+}
+
+/** Icon/cold launches should land on Timetable — never Alerts. */
+export function ensureTimetableOnLaunch() {
+  if (!navigationRef.isReady()) return
+
+  try {
+    if (getActiveRouteName(navigationRef.getRootState()) !== "Alerts") return
+  } catch {
+    return
+  }
+
+  navigationRef.dispatch(
+    CommonActions.reset({
+      index: 0,
+      routes: [
+        {
+          name: "Main",
+          state: {
+            index: 0,
+            routes: [{ name: "Tabs" }],
+          },
+        },
+      ],
+    }),
+  )
 }
