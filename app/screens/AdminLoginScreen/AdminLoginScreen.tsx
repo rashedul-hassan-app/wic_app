@@ -23,7 +23,10 @@ export const AdminLoginScreen: FC<AdminLoginScreenProps> = ({ navigation }) => {
   const [attempts, setAttempts] = useState(0)
 
   const { authEmail, setAuthEmail, setAuthToken, validationError } = useAuth()
-  const { themed, theme: { colors } } = useAppTheme()
+  const {
+    themed,
+    theme: { colors },
+  } = useAppTheme()
 
   const error = isSubmitted ? validationError : ""
 
@@ -76,7 +79,9 @@ export const AdminLoginScreen: FC<AdminLoginScreenProps> = ({ navigation }) => {
         <Ionicons name="lock-closed-outline" size={36} color={colors.tint} />
       </View>
 
-      <Text style={themed($title)} preset="heading" weight="bold">Admin Login</Text>
+      <Text style={themed($title)} preset="heading" weight="bold">
+        Admin Login
+      </Text>
       <Text style={themed($subtitle)}>
         Access is restricted to authorised mosque administrators.
       </Text>
@@ -117,12 +122,7 @@ export const AdminLoginScreen: FC<AdminLoginScreenProps> = ({ navigation }) => {
         RightAccessory={PasswordAccessory}
       />
 
-      <Button
-        text="Log in"
-        style={themed($loginButton)}
-        preset="reversed"
-        onPress={handleLogin}
-      />
+      <Button text="Log in" style={themed($loginButton)} preset="reversed" onPress={handleLogin} />
     </Screen>
   )
 }

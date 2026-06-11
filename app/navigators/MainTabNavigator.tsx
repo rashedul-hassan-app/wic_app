@@ -1,10 +1,10 @@
 import { TextStyle, ViewStyle } from "react-native"
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import { Ionicons } from "@expo/vector-icons"
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { MosqueScreen } from "@/screens/MosqueScreen/MosqueScreen"
 import { MoreScreen } from "@/screens/MoreScreen/MoreScreen"
+import { MosqueScreen } from "@/screens/MosqueScreen/MosqueScreen"
 import { PrayerTimesScreen } from "@/screens/PrayerTimesScreen/PrayerTimesScreen"
 import { useAppTheme } from "@/theme/context"
 import type { ThemedStyle } from "@/theme/types"
@@ -15,18 +15,18 @@ const Tab = createBottomTabNavigator<MainTabParamList>()
 
 type IoniconName = React.ComponentProps<typeof Ionicons>["name"]
 
-const TAB_ICONS: Record<
-  keyof MainTabParamList,
-  { active: IoniconName; inactive: IoniconName }
-> = {
-  Timetable: { active: "time",               inactive: "time-outline" },
-  Mosque:    { active: "business",           inactive: "business-outline" },
-  More:      { active: "ellipsis-horizontal", inactive: "ellipsis-horizontal-outline" },
+const TAB_ICONS: Record<keyof MainTabParamList, { active: IoniconName; inactive: IoniconName }> = {
+  Timetable: { active: "time", inactive: "time-outline" },
+  Mosque: { active: "business", inactive: "business-outline" },
+  More: { active: "ellipsis-horizontal", inactive: "ellipsis-horizontal-outline" },
 }
 
 export function MainTabNavigator() {
   const { bottom } = useSafeAreaInsets()
-  const { themed, theme: { colors } } = useAppTheme()
+  const {
+    themed,
+    theme: { colors },
+  } = useAppTheme()
 
   return (
     <Tab.Navigator

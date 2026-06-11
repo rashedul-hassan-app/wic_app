@@ -1,6 +1,6 @@
 import { TouchableOpacity, View, ViewStyle, TextStyle } from "react-native"
-import { parseISO } from "date-fns"
 import { Ionicons } from "@expo/vector-icons"
+import { parseISO } from "date-fns"
 
 import { Text } from "@/components/Text"
 import { useAppTheme } from "@/theme/context"
@@ -16,7 +16,10 @@ interface DateNavigatorProps {
 }
 
 export function DateNavigator({ date, isToday, onPrev, onNext }: DateNavigatorProps) {
-  const { themed, theme: { colors } } = useAppTheme()
+  const {
+    themed,
+    theme: { colors },
+  } = useAppTheme()
 
   const gregorian = formatDisplayDate(date)
   const hijri = formatHijriDate(parseISO(date))
@@ -34,13 +37,13 @@ export function DateNavigator({ date, isToday, onPrev, onNext }: DateNavigatorPr
           </Text>
           {isToday && (
             <View style={themed($todayBadge)}>
-              <Text style={themed($todayBadgeText)} weight="bold">Today</Text>
+              <Text style={themed($todayBadgeText)} weight="bold">
+                Today
+              </Text>
             </View>
           )}
         </View>
-        {hijri ? (
-          <Text style={themed($hijriText)}>{hijri}</Text>
-        ) : null}
+        {hijri ? <Text style={themed($hijriText)}>{hijri}</Text> : null}
       </View>
 
       <TouchableOpacity onPress={onNext} hitSlop={12} style={themed($arrowButton)}>

@@ -1,7 +1,7 @@
 import { FC, useState } from "react"
 import { ActivityIndicator, TouchableOpacity, View, ViewStyle, TextStyle } from "react-native"
-import { addDays, format, parseISO, subDays } from "date-fns"
 import { Ionicons } from "@expo/vector-icons"
+import { addDays, format, parseISO, subDays } from "date-fns"
 
 import { Screen } from "@/components/Screen"
 import { Text } from "@/components/Text"
@@ -11,6 +11,7 @@ import { useAppTheme } from "@/theme/context"
 import type { ThemedStyle } from "@/theme/types"
 
 import { AnnouncementBanner } from "./components/AnnouncementBanner"
+import { CountdownDisplay } from "./components/CountdownDisplay"
 import { DateNavigator } from "./components/DateNavigator"
 import { JumuahTable } from "./components/JumuahTable"
 import { PrayerInfoCards } from "./components/PrayerInfoCards"
@@ -21,7 +22,10 @@ function todayISO() {
 }
 
 export const PrayerTimesScreen: FC = () => {
-  const { themed, theme: { colors } } = useAppTheme()
+  const {
+    themed,
+    theme: { colors },
+  } = useAppTheme()
 
   const [selectedDate, setSelectedDate] = useState(todayISO)
   const isToday = selectedDate === todayISO()
@@ -33,11 +37,9 @@ export const PrayerTimesScreen: FC = () => {
   const { data: todayData } = usePrayerTimes(todayISO())
   const currentPrayer = useCurrentPrayer(todayData?.prayers ?? [])
 
-  const handlePrev = () =>
-    setSelectedDate(format(subDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
+  const handlePrev = () => setSelectedDate(format(subDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
 
-  const handleNext = () =>
-    setSelectedDate(format(addDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
+  const handleNext = () => setSelectedDate(format(addDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
 
   return (
     <Screen
@@ -50,6 +52,8 @@ export const PrayerTimesScreen: FC = () => {
       <AppHeader />
 
       {data?.announcement && <AnnouncementBanner text={data.announcement} />}
+
+      {isToday && todayData?.prayers && <CountdownDisplay prayers={todayData.prayers} />}
 
       <PrayerInfoCards
         currentPrayer={currentPrayer}
@@ -74,9 +78,7 @@ export const PrayerTimesScreen: FC = () => {
             currentPrayerName={isToday ? (currentPrayer?.prayer.name ?? null) : null}
             countdownLabel={isToday ? currentPrayer?.countdownLabel : undefined}
           />
-          {data.jumuah.length > 0 && (
-            <JumuahTable jumuah={data.jumuah} />
-          )}
+          {data.jumuah.length > 0 && <JumuahTable jumuah={data.jumuah} />}
         </>
       ) : null}
 
@@ -86,7 +88,10 @@ export const PrayerTimesScreen: FC = () => {
 }
 
 function AppHeader() {
-  const { themed, theme: { colors } } = useAppTheme()
+  const {
+    themed,
+    theme: { colors },
+  } = useAppTheme()
 
   return (
     <View style={themed($header)}>
