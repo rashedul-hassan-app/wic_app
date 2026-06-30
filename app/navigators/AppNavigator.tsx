@@ -2,8 +2,9 @@ import { NavigationContainer } from "@react-navigation/native"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
 
 import Config from "@/config"
-import { ErrorBoundary } from "@/screens/ErrorScreen/ErrorBoundary"
 import { AdminLoginScreen } from "@/screens/AdminLoginScreen/AdminLoginScreen"
+import { ErrorBoundary } from "@/screens/ErrorScreen/ErrorBoundary"
+import { NotificationScreen } from "@/screens/NotificationScreen/NotificationScreen"
 import { useAppTheme } from "@/theme/context"
 
 import { MainTabNavigator } from "./MainTabNavigator"
@@ -15,7 +16,9 @@ const exitRoutes = Config.exitRoutes
 const Stack = createNativeStackNavigator<AppStackParamList>()
 
 function AppStack() {
-  const { theme: { colors } } = useAppTheme()
+  const {
+    theme: { colors },
+  } = useAppTheme()
 
   return (
     <Stack.Navigator
@@ -32,6 +35,7 @@ function AppStack() {
         component={AdminLoginScreen}
         options={{ presentation: "modal" }}
       />
+      <Stack.Screen name="Notifications" component={NotificationScreen} />
     </Stack.Navigator>
   )
 }

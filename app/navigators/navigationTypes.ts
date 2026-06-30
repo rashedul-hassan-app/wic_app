@@ -18,6 +18,7 @@ export type MainTabParamList = {
 export type AppStackParamList = {
   Main: NavigatorScreenParams<MainTabParamList>
   AdminLogin: undefined
+  Notifications: undefined
 }
 
 export type AppStackScreenProps<T extends keyof AppStackParamList> = NativeStackScreenProps<
@@ -30,5 +31,6 @@ export type MainTabScreenProps<T extends keyof MainTabParamList> = CompositeScre
   AppStackScreenProps<keyof AppStackParamList>
 >
 
-export interface NavigationProps
-  extends Partial<ComponentProps<typeof NavigationContainer<AppStackParamList>>> {}
+export interface NavigationProps extends Partial<
+  ComponentProps<typeof NavigationContainer<AppStackParamList>>
+> {}
